@@ -1,0 +1,35 @@
+  H
+  |
+H-C-aller
+  |
+  H
+
+This program is designed to call m6A from nanopore data using the differences between measured and expected currents. 
+
+REQUIREMENTS:
+# python packages
+- scikit-learn 
+- h5py
+- biopython 
+- matplotlib
+- seaborn
+- numpy
+- pysam
+- scipy
+- pandas
+
+# other
+- nanopore sequencing data (fast5 format)
+- a bam file with the alignment of the nanopore sequences to a reference genome, sorted and indexed (try graphmap, samtools view -bS, samtools sort, samtools index)
+- a reference sequence file (fasta)
+
+OPTIONS:
+-p/--positions [position file]	provide a list of positions at which to classify (default)
+-w/--whole-genome 		classify at every adenine in a genome
+-r/--reference [ref fasta]	file with the reference sequence aligned to 
+-b/--bam [bam file]		file with alignment **must be sorted and indexed
+-h/--help			print help
+-v/--version			print version
+
+
+
