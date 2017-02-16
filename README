@@ -20,7 +20,7 @@ REQUIREMENTS:
 
 # other
 - nanopore sequencing data (fast5 format)
-- a bam file with the alignment of the nanopore sequences to a reference genome, sorted and indexed (try graphmap, samtools view -bS, samtools sort, samtools index)
+- a tsv file with the signal realignment from nanopolish 
 - a reference sequence file (fasta)
 
 OPTIONS:
