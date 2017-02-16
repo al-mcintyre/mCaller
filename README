@@ -24,10 +24,18 @@ REQUIREMENTS:
 - a reference sequence file (fasta)
 
 OPTIONS:
+
+usage: mCaller_nanopolish.py [-h] (-p POSITIONS | -m) -r REFERENCE -f TSV
+                             [-t THREADS] [-l LABEL] [-b BASE] [--train] [-v]
+
 -p/--positions [position file]	provide a list of positions at which to classify (default)
--w/--whole-genome 		classify at every adenine in a genome
+-m/--motif [nucleobases]	classify at each instance of a particular motif >= 1 base long (eg. A or GATC) in a genome
 -r/--reference [ref fasta]	file with the reference sequence aligned to 
--b/--bam [bam file]		file with alignment **must be sorted and indexed
+-f/--tsv [tsv file]		file with signal realignment from nanopolish
+-t/--threads [int]		no function, currently, options are 1 or 1
+-l/--label [eg. m6A]		label defined positions for training
+-b/--base [A or C]		base to classify as methylated or unmethylated 
+--train				no current function
 -h/--help			print help
 -v/--version			print version
 
