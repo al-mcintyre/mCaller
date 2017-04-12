@@ -1,6 +1,3 @@
-#A program to classify bases as methylated or unmethylated based on long-range signals using the output from nanopolish
-#Alexa McIntyre, 2016-2017
-
 from collections import defaultdict
 import numpy as np
 import cPickle 

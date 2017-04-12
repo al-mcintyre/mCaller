@@ -25,7 +25,6 @@ def distribute_threads(positions_list,motif,tsvname,refname,multi_fasta,base,lab
            meth_fwd,meth_rev = methylate_references(str(ref.seq).upper(),base,motif=motif,positions=positions_list)
            extract_features(tsvname,meth_fwd,meth_rev,label=label,k=nvariables)
     """
-    #when you do add this, write each set of results to a temporary file, then concatenate them
     else:
         print('multiple threads not yet enabled')
         sys.exit(0)
