@@ -56,6 +56,7 @@ def methylate_positions(ref_seq,positions,meth_base):
 
 #extract signals around methylated positions from tsv
 def methylate_references(ref_seq,base,motif=None,positions=None):
+   ref_seq = ref_seq
    if motif:
       meth_fwd = methylate_motifs(ref_seq,motif,base)
       meth_rev = methylate_motifs(ref_seq,comp(motif),base_comps[base])
@@ -70,99 +71,125 @@ def methylate_references(ref_seq,base,motif=None,positions=None):
    return meth_fwd,meth_rev
 
 #determine difference between measurements and model for bases surrounding methylated positions 
-def extract_features(tsv_input,meth_fwd,meth_rev,label):
-   k = 15 #normally 6
-   last_kmer = ''
+def extract_features(tsv_input,meth_fwd,meth_rev,label,k=6):
+   #print meth_fwd[14827-k+1:14827+k]
+   #print meth_rev[14828-k+1:14828+k]
    last_read = ''
-   kmer_level = []
-   model_level = 0
    last_pos = 0
-   read_col = []
-   pos_col = []
-   kmer_col = []
-   diff_col = []
-   last_pos_meth = False
-   num_reads = 0
+   last_pos_in_kmer = k
+   mpos = None
+   diff_col = [[] for xi in range(k)]
+   num_observations = 0
+   w_skips = set()
    pos_set = set()
    read_set = set()
    firstline = True
    last_read_num = 0
    multi_meth_pos_set = set()
+   skipped_skips = set()
+   tsv_output = '.'.join(tsv_input.split('.')[:-1])+'.diffs.'+str(k)+'.'+label
+   print tsv_output
 
    #only save one set of adjoining methylated positions at a time - once the set complete, write the positions to a file 
+   #format: ecoli	805	CGCCAT	cc1da58e-3db3-4a4b-93c2-c78e1dbe6aba:1D_000:template	t	1	102.16	0.963	0.00175	CGCCAT	102.23	1.93	-0.03	101.973,100.037,102.403,101.758,104.338,102.618,101.973
    with open(tsv_input,'r') as tsv:
       for line in tsv:
          linesp = line.split('\t')
-         fwd,rev = False,False
+         chr, read_pos, read_kmer, read_name, x, read_ind, event_current, event_sd, y, ref_kmer, model_current, ref_sd, z, event_levels = line.split('\t')
          if firstline:
             firstline = False
             continue
          else:
-            if linesp[2] == linesp[9]:
-               rev = False
-               adj = 0
-               meth_ref = meth_fwd
-            elif linesp[2] == revcomp(linesp[9]):
-               rev = True
-               adj = 0
-               meth_ref = meth_rev
-            elif linesp[9] == 'NNNNNN': #nothing changes, this measurement is skipped
+            if read_name != last_read:
+               first_read_ind = int(read_ind)
+            if ref_kmer == 'NNNNNN':
                continue
+            if (read_name != last_read and read_kmer == ref_kmer) or (read_name == last_read and int(read_ind) > first_read_ind): #takes into account complementary palindromes
+               rev = False
+               meth_ref = meth_fwd
             else:
-               print line, linesp[2], revcomp(linesp[9])
-            read_pos = int(linesp[1])
-            #print linesp[9], meth_ref[read_pos:read_pos+6]
-            #print meth_ref[read_pos:read_pos+6], linesp[2], linesp[9], revcomp(meth_ref[read_pos:read_pos+6])
-            #break
-            if len([x for x in meth_ref[read_pos:read_pos+k] if x == 'M']) > 1 and meth_ref[read_pos] == 'M':
-               #print meth_ref[read_pos:read_pos+6], read_pos
-               multi_meth_pos_set.add(read_pos)
-            if len([x for x in meth_ref[read_pos+adj:read_pos+adj+k] if x == 'M']) == 1: #starting with cases where only a single position is methylated in a kmer
-               #print meth_ref[read_pos+adj:read_pos+adj+6],linesp[9],meth_ref == meth_rev
-               if linesp[9] == last_kmer:
-                  kmer_level.append(float(linesp[6]))
-               else:
-                  if last_pos_meth:
-                     read_col.append(last_read)
-                     pos_col.append(last_pos)
-                     kmer_col.append(last_kmer)
-                     diff_col.append(np.mean(kmer_level)-model_level)
-                  #if read_pos == last_pos + 1:
-                  last_read = linesp[3]
-                  model_level = float(linesp[10])
-                  last_pos = read_pos
-                  last_kmer = linesp[9]
-                  kmer_level = [float(linesp[6])]
-                  last_pos_meth = True
-            elif last_pos_meth and 'M' not in set(list(meth_ref[read_pos:read_pos+k])):
-               last_pos_meth = False
-               read_col.append(last_read)
-               pos_col.append(last_pos)
-               kmer_col.append(last_kmer)
-               diff_col.append(np.mean(kmer_level)-model_level)
-               if len(set(pos_col)) == k and last_pos == pos_col[0]+k-1: #starting with cases without skips
-                  with open('.'.join(tsv_input.split('.')[:-1])+'.diffs.'+str(k)+'.'+label,'a') as outfi:
-                     outfi.write(last_read+'\t'+str(last_pos)+'\t'+revcomp(meth_ref[last_pos-5:last_pos+k],rev)+'\t'+','.join([str(diff) for diff in diff_col])+'\t'+strand(rev)+'\t'+label+'\n')
-                  num_reads += 1  
+               rev = True
+               meth_ref = meth_rev
+            read_pos = int(read_pos)
+            reference_kmer = meth_ref[read_pos:read_pos+k]
+            #print read_name,rev,ref_kmer, reference_kmer
+
+            #if pass the context for the previous (potentially) modified position, save and reset 
+            if mpos and ((read_pos >= mpos+1 and read_name == last_read) or (read_name != last_read)):
+        
+               #write to file
+               num_skips = len([x for x in diff_col if x == []])
+               if num_skips <= 2: #accept max of 2 skips for 6mer contexts
+                  if num_skips> 0:
+                     w_skips.add((last_read,mpos))
+                  with open(tsv_output,'a') as outfi:
+                     diffs = [np.mean(kmer_pos) if kmer_pos!=[] else 0 for kmer_pos in diff_col]
+                     if not last_rev:
+                        diffs = diffs[::-1]
+                     outfi.write(last_read+'\t'+str(mpos)+'\t'+revcomp(meth_ref[mpos-k+1:mpos+k],last_rev)+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev)+'\t'+label+'\n')
+                     last_info = last_read+'\t'+str(mpos)+'\t'+revcomp(meth_ref[mpos-k+1:mpos+k],last_rev)+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev)+'\t'+label
+                  num_observations += 1
                   pos_set.add(last_pos)
                   read_set.add(last_read)
                   if len(read_set)%1000 == 0 and len(read_set) > last_read_num:
                      print len(read_set), 'reads examined'
                      last_read_num = len(read_set)
-                  #print rev,revcomp(meth_ref[last_pos-5:last_pos+6],rev), last_pos, zip(pos_col,kmer_col,diff_col)
-                  #if num_reads > 10:
-                  #    break
-               #for pos in pos_col:
-               read_col, pos_col, kmer_col, diff_col = [],[],[],[]
-            else:
-               last_pos_meth = False
-               read_col, pos_col, kmer_col, diff_col = [],[],[],[]
-               last_kmer = ''
-               meth_pos_set = set([])
+               else:
+                   skipped_skips.add((last_read,mpos))
+          
+               #reset variables
+               if len(reference_kmer.split('M')) < 2 or read_name != last_read or read_pos > mpos+k: #allow no more than k skips
+                   diff_col = [[] for i in range(k)] 
+                   mpos = None
+                   last_pos_in_kmer = k 
+               else: 
+                   if reference_kmer[0] != 'M':
+                      multi_meth_pos_set.add((last_read,mpos))
+                   last_mpos = mpos
+                   pos_in_kmer = len(reference_kmer.split('M')[0])
+                   mpos = read_pos + pos_in_kmer
+                   mspacing = mpos - last_mpos
+                   last_pos_in_kmer = pos_in_kmer
+                   diffs = [[] for i in range(mspacing)] + diff_col[:-mspacing]
+                   diff_col = diffs
+                   if len(diff_col) != k:
+                      print last_info
+                      print reference_kmer,mpos,read_pos,read_pos>mpos,read_name,last_read,diff_col,mspacing
+                      diff_col = [[] for i in range(k)]
+                   #break
+ 
+            #if modified base in reference, save surrounding context to call that position
+            if len([x for x in reference_kmer if x == 'M']) >= 1:
+               pos_in_kmer = [i for i,x in enumerate(list(reference_kmer)) if x == 'M'][0]
+               #if new read, reset differences variable and proceed
+               if mpos and read_name != last_read:
+                  mpos = None
+                  diff_col = [[] for i in range(k)]
+               #if new read or new position
+               if not mpos: #TODO: reject any positions too close to beginning of read
+                  mpos = read_pos+pos_in_kmer
+               last_pos_in_kmer = pos_in_kmer
+               last_read = read_name
+               last_rev = rev
+               try:
+                  diff_col[pos_in_kmer].append(float(event_current)-float(model_current))
+               except IndexError:
+                  print diff_col, mpos, read_pos, reference_kmer, pos_in_kmer
+                  diff_col = [[] for i in range(k)]
+                  diff_col[pos_in_kmer].append(float(event_current)-float(model_current))
+                  #break
+               last_pos = read_pos 
+               #print mpos, reference_kmer, read_pos, diff_col
+            
+            elif mpos:
+               mpos = None
+               diff_col = [[] for i in range(k)]
 
-   print num_reads,'reads represented'
+   print num_observations,'observations'
    num_pos = len(pos_set)
-   print num_pos,'positions represented'
+   print num_pos,'positions'
    #cPickle.dump(diffs_by_read,open(tsv_input+'.pkl','wb'))
    print len(multi_meth_pos_set),'regions with multiple methylated bases'
+   print len(w_skips), 'observations with skips'
+   print len(skipped_skips), 'observations with too many skips'
 

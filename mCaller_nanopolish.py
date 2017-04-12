@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #A program to classify bases as methylated or unmethylated based on long-range signals using the output from nanopolish
 #Alexa McIntyre, 2016-2017
 
@@ -8,18 +9,21 @@ from extract_contexts import *
 import sys
 from Bio import SeqIO
 
-def distribute_threads(positions_list,motif,tsvname,refname,multi_fasta,base,label,nprocs):
+def distribute_threads(positions_list,motif,tsvname,refname,multi_fasta,base,label,nprocs,nvariables):
     """ distributes list of genomic positions across processes then adds resulting signals to matrix"""
     #def worker(out_q, positions, tsv, fast5dir, refname, multi_fa, base, k=6, label=label):
     #    outtup = extract_features(positions, tsv, fast5dir, refname, multi_fa, base, k, label=label)
     #    out_q.put(outtup)
 
-    nproc_min = min(nprocs, len(positions_list))
+    if positions_list:
+       nproc_min = min(nprocs, len(positions_list))
+    else:
+       nproc_min = nprocs
 
     if nproc_min == 1 and not multi_fasta:
         for ref in SeqIO.parse(refname,"fasta"):
            meth_fwd,meth_rev = methylate_references(str(ref.seq).upper(),base,motif=motif,positions=positions_list)
-           extract_features(tsvname,meth_fwd,meth_rev,label=label)
+           extract_features(tsvname,meth_fwd,meth_rev,label=label,k=nvariables)
     """
     #when you do add this, write each set of results to a temporary file, then concatenate them
     else:
@@ -61,12 +65,13 @@ def main():
     parser = ArgumentParser(description='Classify bases as methylated or unmethylated')
     all_or_some = parser.add_mutually_exclusive_group(required=True)
     all_or_some.add_argument('-p','--positions',type=str,required=False, help='file with a list of positions at which to classify bases (default)')
-    all_or_some.add_argument('-m','--motif',action='store_true',required=False, help='classify every base of type --base in the motif specified instead (can be single one-mer)')
+    all_or_some.add_argument('-m','--motif',type=str,required=False, help='classify every base of type --base in the motif specified instead (can be single one-mer)')
     parser.add_argument('-r','--reference',type=str,required=True,help='fasta file with reference aligned to')
     parser.add_argument('-f','--tsv',type=str,required=True,help='tsv file with nanopolish alignment')
     parser.add_argument('-t','--threads',type=int,required=False,help='specify number of processes (default = 1)',default=1)
     parser.add_argument('-l','--label',type=str,required=False,help='label for bases in positions set (eg. A,C,m6A,m5C)',default='m6A')
     parser.add_argument('-b','--base',type=str,required=False,help='bases to classify as methylated or unmethylated (A or C)',default='A')
+    parser.add_argument('-n','--num_variables',type=int,required=False,help='change the length of the context used to classify (default of 6 variables corresponds to 11-mer context (6*2-1))',default=6)
     parser.add_argument('--train',action='store_true',required=False,help='train a new model (requires labels)',default=False)
     parser.add_argument('-v','--version',action='store_true',required=False,help='print version')
     args = parser.parse_args()
@@ -93,7 +98,7 @@ def main():
         #comp_list_pos = [(i+1,'-') for i,base in enumerate(list(ref_seq.seq)[:-1]) if base == args.base and ref_seq.seq[i+1] == 'C']
 
     #distribute to multiple threads for main computations
-    distribute_threads(args.positions,args.motif,args.tsv,args.reference,multi_fasta,args.base,args.label,args.threads)
+    distribute_threads(args.positions,args.motif,args.tsv,args.reference,multi_fasta,args.base,args.label,args.threads,args.num_variables)
 
 if __name__ == "__main__":
     main()
