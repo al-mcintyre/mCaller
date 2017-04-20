@@ -8,15 +8,26 @@ import cPickle
 import sys
 #import time
 import os
+import math
 import multiprocessing
 from Bio import SeqIO
 
 from extract_contexts import *
-from train_model import train_classifier
+from train_model import train_classifier,pos2label
 from read_qual import extract_read_quality
 
 def distribute_threads(positions_list,motif,tsvname,read2qual,refname,multi_fasta,base,mod,nprocs,nvariables,train,modelfile,skip_thresh,qual_thresh,classifier):
     """ distributes list of genomic positions across processes then adds resulting signals to matrix if training"""
+    if not train:
+      tsv_output = '.'.join(tsvname.split('.')[:-1])+'.diffs.'+str(nvariables)
+      training_pos_dict = None
+    else: 
+      tsv_output = '.'.join(tsvname.split('.')[:-1])+'.diffs.'+str(nvariables)+'.train'
+      training_pos_dict = pos2label(positions_list)
+    try:
+       os.remove(tsv_output)
+    except OSError:
+       pass
 
     if not multi_fasta:
 
@@ -27,11 +38,12 @@ def distribute_threads(positions_list,motif,tsvname,read2qual,refname,multi_fast
              if not train:
                 extract_features(tsvname,read2qual,meth_fwd,meth_rev,nvariables,skip_thresh,qual_thresh,modelfile,classifier,0) #TODO: implement quality thresholding
              else:
-                signal_mat, label_array, context_array = extract_features(tsvname,read2qual,meth_fwd,meth_rev,nvariables,modelfile,skip_thresh,qual_thresh,classifier,0,train)
+                signal_mat, label_array, context_array = extract_features(tsvname,read2qual,meth_fwd,meth_rev,nvariables,modelfile,skip_thresh,qual_thresh,classifier,0,train=train,pos_label=training_pos_dict)
 
           elif nprocs > 1 and not multi_fasta:
-             def worker(out_q,tsvname,read2qual,meth_fwd,meth_rev,nvariables,skip_thresh,qual_thresh,modelfile,classifier,startline,endline,train): 
-                outtup = extract_features(tsvname,read2qual,meth_fwd,meth_rev,nvariables,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=endline,train=train)
+
+             def worker(out_q,tsvname,read2qual,meth_fwd,meth_rev,nvariables,skip_thresh,qual_thresh,modelfile,classifier,startline,endline,train,training_pos_dict): 
+                outtup = extract_features(tsvname,read2qual,meth_fwd,meth_rev,nvariables,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=endline,train=train,pos_label=training_pos_dict)
                 out_q.put(outtup)
 
              def countlines(filename):
@@ -46,7 +58,7 @@ def distribute_threads(positions_list,motif,tsvname,read2qual,refname,multi_fast
              for i in range(nprocs):
                 p = multiprocessing.Process(
                    target=worker,
-                   args=(out_q,tsvname,read2qual,meth_fwd,meth_rev,nvariables,skip_thresh,qual_thresh,modelfile,classifier,chunksize*i,chunksize*(i+1),train))
+                   args=(out_q,tsvname,read2qual,meth_fwd,meth_rev,nvariables,skip_thresh,qual_thresh,modelfile,classifier,chunksize*i,chunksize*(i+1),train,training_pos_dict))
                 procs.append(p)
                 p.start()
 
@@ -107,7 +119,9 @@ def main():
         sys.exit(0)
  
     if not args.modelfile:
-        args.modelfile = 'mod.'+args.classifier+'.'+str(args.num_variables)+'.pkl'
+        modelfile = 'model_'+args.classifier+'_'+str(args.num_variables)+'_'+mod+'.pkl'
+    else:
+        modelfile = args.modelfile
     
     if not args.train:
         assert os.path.isfile(args.modelfile), 'model file not found at '+args.modelfile
@@ -133,7 +147,7 @@ def main():
 
     #distribute to multiple threads for main computations
     distribute_threads(args.positions,args.motif,args.tsv,read2qual,args.reference,multi_fasta,args.base,mod,args.threads,args.num_variables,
-        args.train,args.modelfile,args.skip_thresh,args.qual_thresh,args.classifier)
+        args.train,modelfile,args.skip_thresh,args.qual_thresh,args.classifier)
 
 if __name__ == "__main__":
     main()

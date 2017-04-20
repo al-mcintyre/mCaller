@@ -13,6 +13,13 @@ from sklearn.model_selection import GroupKFold
 from sklearn.model_selection import GroupShuffleSplit
 from sklearn.ensemble import GradientBoostingClassifier
 
+#make position to label dict for training
+def pos2label(positions):
+   pos2label_dict = {(int(pos.split()[1])-1,pos.split()[2]):pos.split()[3] for pos in open(positions,'r').read().split('\n') if len(pos.split()) > 1}
+   print pos2label_dict
+   return pos2label_dict
+
+#to show best results of parameter grid search
 def report(results, n_top):
     for i in range(1, n_top + 1):
         candidates = np.flatnonzero(results['rank_test_score'] == i)
@@ -63,11 +70,11 @@ def train_classifier(signals,labels,groups,modelfile,classifier='NN'): #TODO: se
    #report(random_search.cv_results_,min(1,combinations))
    #model=None        
 
-   model.fit(signals,labels)
    scores = cross_val_score(model,signals,labels,cv=gfk,groups=groups)
-      
    print scores
    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+
+   model.fit(signals,labels)
   
    modfi = open(modelfile,'wb')
    cPickle.dump(model,modfi)

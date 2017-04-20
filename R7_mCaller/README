@@ -4,7 +4,7 @@ H-C-aller
   |
   H
 
-This program is designed to call m6A from nanopore data using the differences between measured and expected currents. 
+This program is designed to call m6A from nanopore data using the differences between measured and expected currents for R7 nanopore data. Not going to develop this further, but here is the code anyway. 
 
 REQUIREMENTS:
 # python packages

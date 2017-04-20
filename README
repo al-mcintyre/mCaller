@@ -4,7 +4,7 @@ H-C-aller
   |
   H
 
-This program is designed to call m6A from nanopore data using the differences between measured and expected currents. It does not yet work with multi-contig/chromosome references and needs to be parallelized. 
+This program is designed to call m6A from nanopore data using the differences between measured and expected currents. It does not yet work with multi-contig/chromosome references.  
 
 REQUIREMENTS:
 # python packages
@@ -49,7 +49,8 @@ optional arguments:
   -f, --fastq 
                         fastq file with nanopore reads
   -t, --threads
-                        specify number of processes (default = 1)
+                        specify number of processes (default = 1) 
+			multiple threads should work but output won't be sorted
   -b, --base  bases to classify as methylated or unmethylated (A or
                         C, default A)
   -n, --num_variables
@@ -74,7 +75,9 @@ optional arguments:
 PIPELINE FOR METHYLATION DETECTION IN R9 DATA:
 
 1. extract template strand reads from fast5 files using a method that saves the file path in the fastq header, eg.
-        nanopolish extract -q -t template > <filename>.fastq
+        nanopolish extract -q -t template <fast5 directory> > <filename>.fastq
+   or 
+        poretools fastq --type fwd <fast5 directory> > <filename>.fastq
 2. align fastq reads to reference assembly (we have used both GraphMap and bwa mem, with comparable results):
         bwa index <reference>.fasta
         bwa mem -x ont2d -t <num_threads> <reference>.fasta <filename>.fastq | samtools view -Sb - | samtools sort -T /tmp/<filename>.sorted -o <filename>.sorted.bam
@@ -96,5 +99,9 @@ TEST DATA:
 Reference fasta, PacBio calls for m6A and a subset of A positions, and eventalign tsv + fastq are provided for a single read for testing purposes in the "testdata" folder. 
 To run mCaller on the testdata, use:
    ./mCaller_nanopolish.py -p testdata/test_positions_<m6A/A>.txt -r testdata/pb_ecoli_polished_assembly.fasta -e testdata/masonread1.eventalign.tsv -d mod_NN_6_m6A.pkl -f testdata/masonread1.fastq
+Can also try using -m GATC, although not all GATC positions within the read were identified as methylated on both strands using PacBio and the model is slightly weighted to accept more false negatives than false positives at the moment. 
+
+To train on the testdata (don't actually use this model trained on one read), try:
+  ./mCaller_nanopolish.py -p testdata/test_positions.txt -r testdata/pb_ecoli_polished_assembly.fasta -e testdata/masonread1.eventalign.tsv -t 4 --train -f testdata/masonread1.fastq
 
 This will generate the output file testdata/masonread1.eventalign.diffs.6 

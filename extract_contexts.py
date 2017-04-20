@@ -52,7 +52,7 @@ def methylate_positions(ref_seq,positions,meth_base):
    return meth_seq
 
 #extract signals around methylated positions from tsv
-def methylate_references(ref_seq,base,motif=None,positions=None):
+def methylate_references(ref_seq,base,motif=None,positions=None,train=False):
    ref_seq = ref_seq
    if motif:
       print len(ref_seq)
@@ -70,7 +70,7 @@ def methylate_references(ref_seq,base,motif=None,positions=None):
    return meth_fwd,meth_rev
 
 #determine difference between measurements and model for bases surrounding methylated positions 
-def extract_features(tsv_input,read2qual,meth_fwd,meth_rev,k,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=None,train=False):
+def extract_features(tsv_input,read2qual,meth_fwd,meth_rev,k,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=None,train=False,pos_label=None):
 
    last_read = ''
    last_pos = 0
@@ -85,21 +85,21 @@ def extract_features(tsv_input,read2qual,meth_fwd,meth_rev,k,skip_thresh,qual_th
    last_read_num = 0
    multi_meth_pos_set = set()
    skipped_skips = set()
-   tsv_output = '.'.join(tsv_input.split('.')[:-1])+'.diffs.'+str(k)
-   outfi = open(tsv_output,'w') #TODO: fix lazy clear - won't work with multithreads
-   outfi.close()
-
    if not train:
+      tsv_output = '.'.join(tsv_input.split('.')[:-1])+'.diffs.'+str(k)
       print modelfile
       modfi = open(modelfile,'rb')
       model = cPickle.load(modfi)
       modfi.close()
+   if train:
+      tsv_output = '.'.join(tsv_input.split('.')[:-1])+'.diffs.'+str(k)+'.train'
+      signals, labels, contexts = [],[],[]
 
    #only save one set of adjoining methylated positions at a time - once the set complete, write the positions to a file 
    #format: ecoli	805	CGCCAT	cc1da58e-3db3-4a4b-93c2-c78e1dbe6aba:1D_000:template	t	1	102.16	0.963	0.00175	CGCCAT	102.23	1.93	-0.03	101.973,100.037,102.403,101.758,104.338,102.618,101.973
    with open(tsv_input,'r') as tsv:
       for line in tsv:
-         if (startline==0 and linenum == 0) or (linenum<startline):
+         if (startline==0 and linenum == 0) or (linenum<startline-1):
             firstline = False
             linenum+=1
             continue
@@ -136,16 +136,21 @@ def extract_features(tsv_input,read2qual,meth_fwd,meth_rev,k,skip_thresh,qual_th
                   diffs = [np.mean(kmer_pos) if kmer_pos!=[] else 0 for kmer_pos in diff_col]
                   if not last_rev:
                      diffs = diffs[::-1]
+                  diffs = diffs+[read2qual[last_read]]
+                  context = revcomp(meth_ref[mpos-k+1:mpos+k],last_rev)
                   if not train:
-                     mod_prob = model.predict_proba([diffs+[read2qual[last_read]]])
+                     mod_prob = model.predict_proba([diffs])
                      if mod_prob[0][1] >= 0.5: 
                         label = 'm6A' #TODO: ensure correct direction + load model in advance + label unmeth/meth as appropriate 
                      else:
                         label = 'A' 
                   else:
-                     label = pos_label[mpos] #TODO: make dict with position labels for training
-                  outfi.write(last_read+'\t'+str(mpos)+'\t'+revcomp(meth_ref[mpos-k+1:mpos+k],last_rev)+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev)+'\t'+label+'\n')
-                  last_info = last_read+'\t'+str(mpos)+'\t'+revcomp(meth_ref[mpos-k+1:mpos+k],last_rev)+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev)+'\t'+label
+                     label = pos_label[(mpos,strand(last_rev))] #TODO: add chromosome?
+                     signals.append(diffs)
+                     labels.append(label)
+                     contexts.append(context)
+                  outfi.write(last_read+'\t'+str(mpos)+'\t'+context+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev)+'\t'+label+'\n')
+                  last_info = last_read+'\t'+str(mpos)+'\t'+context+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev)+'\t'+label
                num_observations += 1
                pos_set.add(mpos)
                read_set.add(last_read)
