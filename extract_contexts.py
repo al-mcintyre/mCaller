@@ -29,9 +29,10 @@ def methylate_motifs(ref_seq,motif,meth_base,meth_position=None):
          meth_motif = meth_position+motif[meth_position+1:]
    else:
       meth_motif = 'M'.join(motif.split(meth_base))
-   ref_motif_segs = ref_seq.split(motif)
-   meth_seq = meth_motif.join(ref_motif_segs)
-   print len(ref_motif_segs)-1, motif+' positions (not necessarily singletons) in the forward strand'
+   meth_seq = ref_seq.replace(motif,meth_motif)
+   #ref_motif_segs = ref_seq.split(motif)
+   #meth_seq = meth_motif.join(ref_motif_segs)
+   #print len(ref_motif_segs)-1, motif+' positions (not necessarily singletons) in the forward strand'
    return meth_seq
 
 #change specified positions to M in reference sequence
@@ -161,7 +162,7 @@ def extract_features(tsv_input,read2qual,meth_fwd,meth_rev,k,skip_thresh,qual_th
                 skipped_skips.add((last_read,mpos))
        
             #reset variables
-            if len(reference_kmer.split('M')) < 2 or read_name != last_read or read_pos > mpos+k: #allow no more than k skips
+            if len(reference_kmer.split('M')) < 2 or read_name != last_read or read_pos > mpos+skip_thresh+1: #allow no more than skip_thresh skips
                 diff_col = [[] for i in range(k)] 
                 mpos = None
                 last_pos_in_kmer = k 
@@ -176,7 +177,10 @@ def extract_features(tsv_input,read2qual,meth_fwd,meth_rev,k,skip_thresh,qual_th
                 diffs = [[] for i in range(mspacing)] + diff_col[:-mspacing]
                 diff_col = diffs
                 if len(diff_col) != k:
-                   print last_info
+                   try:
+                      print last_info
+                   except:
+                      pass
                    print reference_kmer,mpos,read_pos,read_pos>mpos,read_name,last_read,diff_col,mspacing
                    diff_col = [[] for i in range(k)]
                 #break

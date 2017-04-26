@@ -19,7 +19,7 @@ REQUIREMENTS:
 - pandas
 
 # other
-- nanopore sequencing data (fastq format + fast5 to run nanopolish)
+- nanopore sequencing data (fastq format + fast5 to run nanopolish, basecalled using Albacore or another basecaller that saves event data)
 - a tsv file with the signal realignment from nanopolish (https://github.com/jts/nanopolish)
 - a reference sequence file (fasta)
 
@@ -86,8 +86,8 @@ PIPELINE FOR METHYLATION DETECTION IN R9 DATA:
         graphmap align -r <reference>.fasta -d <filename>.fastq -o <filename>.sam
    	samtools view -bS <filename>.sam | samtools sort -T /tmp/<filename>.sorted -o <filename>.sorted.bam
   	samtools index <filename>.sorted.bam
-4. run nanopolish with the following command to save a tsv file and the event values scaled towards the model (ensure nanopolish model files in the same directory):
-	nanopolish eventalign -t <num_threads> --samples --scale-events -n -r <filename>.fastq -b <filename>.sorted.bam -g <reference>.fasta --models nanopolish_models.fofn > <filename>.eventalign.tsv
+4. run nanopolish with the following command to save a tsv file and the event values scaled towards the model:
+	nanopolish eventalign -t <num_threads> --samples --scale-events -n -r <filename>.fastq -b <filename>.sorted.bam -g <reference>.fasta > <filename>.eventalign.tsv
 5. run mCaller to detect m6A:
 	mCaller_nanopolish.py <-m GATC or -p positions.txt> -r <reference>.fasta -e <filename>.eventalign.tsv -f <filename>.fastq -b A
    This returns a tabbed file with readname, genomic position, position k-mer context, features, strand, and label
