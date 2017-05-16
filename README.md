@@ -1,8 +1,8 @@
-  H  
-  |  
-H-C-aller  
-  |  
-  H
+###### &nbsp;&nbsp;&nbsp;&nbsp;H  
+###### &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|  
+###### H-C-aller  
+###### &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|  
+###### &nbsp;&nbsp;&nbsp;&nbsp;H
 
 This program is designed to call m6A from nanopore data using the differences between measured and expected currents. It does not yet work with multi-contig/chromosome references.  
 
