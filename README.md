@@ -1,7 +1,7 @@
-  H
-  \|
-H-C-aller
-  \|
+  H\n
+  \|\n
+H-C-aller\n
+  \|\n
   H
 
 This program is designed to call m6A from nanopore data using the differences between measured and expected currents. It does not yet work with multi-contig/chromosome references.  
@@ -75,33 +75,33 @@ optional arguments:
 ## Pipeline for methylation detection from R9 data
 
 1. extract template strand reads from fast5 files using a method that saves the file path in the fastq header, eg.
-        ``` 
+``` 
 nanopolish extract -q -t template <fast5 directory> > <filename>.fastq 
-        ```
+```
    or 
-        ``` 
+``` 
 poretools fastq --type fwd <fast5 directory> > <filename>.fastq 
-        ```
+```
 2. align fastq reads to reference assembly (we have used both GraphMap and bwa mem, with comparable results):
-        ``` 
+``` 
 bwa index <reference>.fasta 
 bwa mem -x ont2d -t <num_threads> <reference>.fasta <filename>.fastq | samtools view -Sb - | samtools sort -T /tmp/<filename>.sorted -o <filename>.sorted.bam 
 samtools index <filename>.sorted.bam 
-        ```
+```
    or 
-        ``` 
+``` 
 graphmap align -r <reference>.fasta -d <filename>.fastq -o <filename>.sam 
 samtools view -bS <filename>.sam | samtools sort -T /tmp/<filename>.sorted -o <filename>.sorted.bam 
 samtools index <filename>.sorted.bam 
-        ``` 
+``` 
 4. run nanopolish with the following command to save a tsv file and the event values scaled towards the model:
-	``` 
+``` 
 nanopolish eventalign -t <num_threads> --samples --scale-events -n -r <filename>.fastq -b <filename>.sorted.bam -g <reference>.fasta > <filename>.eventalign.tsv
-        ```
+```
 5. run mCaller to detect m6A:
-	```
+```
 mCaller_nanopolish.py <-m GATC or -p positions.txt> -r <reference>.fasta -e <filename>.eventalign.tsv -f <filename>.fastq -b A 
-        ```
+```
    This returns a tabbed file with readname, genomic position, position k-mer context, features, strand, and label
 
 Results and analysis scripts for the E. coli datasets are provided in the bioRxiv folder. 
@@ -111,16 +111,16 @@ Results and analysis scripts for the E. coli datasets are provided in the bioRxi
 Reference fasta, PacBio calls for m6A and a subset of A positions, and eventalign tsv + fastq are provided for a single read for testing purposes in the "testdata" folder. 
 
 1. To run mCaller on the testdata, use:
-   ``` 
+``` 
 ./mCaller_nanopolish.py -p testdata/test_positions_<m6A/A>.txt -r testdata/pb_ecoli_polished_assembly.fasta -e testdata/masonread1.eventalign.tsv -d mod_NN_6_m6A.pkl -f testdata/masonread1.fastq 
-   ```
+```
    Can also try using -m GATC, although not all GATC positions within the read were identified as methylated on both strands using PacBio and the model is slightly weighted to accept more false negatives than false positives at the moment. 
 
   This will generate the output file testdata/masonread1.eventalign.diffs.6
 
 2. To train on the testdata (don't actually use this model trained on one read), try:
-   ``` 
+``` 
 ./mCaller_nanopolish.py -p testdata/test_positions.txt -r testdata/pb_ecoli_polished_assembly.fasta -e testdata/masonread1.eventalign.tsv -t 4 --train -f testdata/masonread1.fastq
-   ```
+```
 
   This will generate the output file model_NN_6_m6A.pkl
