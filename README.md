@@ -96,7 +96,7 @@ samtools index <filename>.sorted.bam
 ``` 
 4. run nanopolish with the following command to save a tsv file and the event values scaled towards the model:
 ``` 
-nanopolish eventalign -t <num_threads> --samples --scale-events -n -r <filename>.fastq -b <filename>.sorted.bam -g <reference>.fasta > <filename>.eventalign.tsv
+nanopolish eventalign -t <num_threads> --scale-events -n -r <filename>.fastq -b <filename>.sorted.bam -g <reference>.fasta > <filename>.eventalign.tsv
 ```
 5. run mCaller to detect m6A:
 ```

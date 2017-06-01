@@ -108,7 +108,7 @@ def extract_features(tsv_input,read2qual,meth_fwd,meth_rev,k,skip_thresh,qual_th
             break
          linenum+=1
          linesp = line.split('\t')
-         chr, read_pos, read_kmer, read_name, x, read_ind, event_current, event_sd, y, ref_kmer, model_current, ref_sd, z, event_levels = line.split('\t')
+         chr, read_pos, read_kmer, read_name, x, read_ind, event_current, event_sd, y, ref_kmer, model_current, ref_sd, z  = line.split('\t')
          if read_name != last_read:
             first_read_ind = int(read_ind)
          if read2qual[read_name] < qual_thresh:
