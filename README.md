@@ -4,7 +4,7 @@
 ###### &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|  
 ###### &nbsp;&nbsp;&nbsp;&nbsp;H
 
-This program is designed to call m6A from nanopore data using the differences between measured and expected currents. It does not yet work with multi-contig/chromosome references.  
+This program is designed to call m6A from nanopore data using the differences between measured and expected currents.  
 
 ## Requirements
 python packages
@@ -102,7 +102,11 @@ nanopolish eventalign -t <num_threads> --scale-events -n -r <filename>.fastq -b 
 ```
 mCaller_nanopolish.py <-m GATC or -p positions.txt> -r <reference>.fasta -e <filename>.eventalign.tsv -f <filename>.fastq -b A 
 ```
-   This returns a tabbed file with readname, genomic position, position k-mer context, features, strand, and label
+   This returns a tabbed file with chromosome, read name, genomic position, position k-mer context, features, strand, and label
+6. (optionally) run summary script to generate a bed file of methylated positions:
+```
+mod_by_position.py -f <filename>.eventalign.diffs.6 -d 15 -m 0.5 
+```
 
 Results and analysis scripts for the E. coli datasets are provided in the bioRxiv folder. 
 
@@ -117,6 +121,11 @@ Reference fasta, PacBio calls for m6A and a subset of A positions, and eventalig
    Can also try using -m GATC, although not all GATC positions within the read were identified as methylated on both strands using PacBio and the model is slightly weighted to accept more false negatives than false positives at the moment. 
 
   This will generate the output file testdata/masonread1.eventalign.diffs.6
+
+``` 
+./mod_by_position.py -f testdata/masonread1.eventalign.diffs.6 -d 1 -m 0.5 
+```
+  Will then generate the output bed file testdata/masonread.methylation.summary.bed with columns chrom, chromStart, chromEnd, context, % methylated, strand, depth of coverage
 
 2. To train on the testdata (don't actually use this model trained on one read), try:
 ``` 
