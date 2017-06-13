@@ -71,7 +71,7 @@ def methylate_references(ref_seq,base,motif=None,positions=None,train=False):
    return meth_fwd,meth_rev
 
 #determine difference between measurements and model for bases surrounding methylated positions 
-def extract_features(tsv_input,read2qual,meth_fwd,meth_rev,k,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=None,train=False,pos_label=None):
+def extract_features(tsv_input,read2qual,contigid,meth_fwd,meth_rev,k,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=None,train=False,pos_label=None):
 
    last_read = ''
    last_pos = 0
@@ -150,7 +150,7 @@ def extract_features(tsv_input,read2qual,meth_fwd,meth_rev,k,skip_thresh,qual_th
                      signals.append(diffs)
                      labels.append(label)
                      contexts.append(context)
-                  outfi.write(last_read+'\t'+str(mpos)+'\t'+context+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev)+'\t'+label+'\n')
+                  outfi.write(contigid+'\t'+last_read+'\t'+str(mpos)+'\t'+context+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev)+'\t'+label+'\n')
                   last_info = last_read+'\t'+str(mpos)+'\t'+context+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev)+'\t'+label
                num_observations += 1
                pos_set.add(mpos)
