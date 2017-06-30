@@ -16,7 +16,7 @@ from extract_contexts import *
 from train_model import train_classifier,pos2label
 from read_qual import extract_read_quality
 
-def distribute_threads(positions_list,motif,tsvname,read2qual,refname,multi_fasta,base,mod,nprocs,nvariables,train,modelfile,skip_thresh,qual_thresh,classifier):
+def distribute_threads(positions_list,motif,tsvname,read2qual,refname,num_refs,base,mod,nprocs,nvariables,train,modelfile,skip_thresh,qual_thresh,classifier):
     """ distributes list of genomic positions across processes then adds resulting signals to matrix if training"""
     if not train:
       tsv_output = '.'.join(tsvname.split('.')[:-1])+'.diffs.'+str(nvariables)
@@ -29,58 +29,89 @@ def distribute_threads(positions_list,motif,tsvname,read2qual,refname,multi_fast
     except OSError:
        pass
 
-    if not multi_fasta:
+    print num_refs, 'contigs'
+    print nprocs, 'threads'
 
-       for ref in SeqIO.parse(refname,"fasta"):
-          meth_fwd,meth_rev = methylate_references(str(ref.seq).upper(),base,motif=motif,positions=positions_list)
+    if nprocs > 1:
+        nprocs_allocated = 0
+        procs = []
+        out_q = multiprocessing.Queue()
+        def worker(out_q,tsvname,fastaname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,startline,endline,train,training_pos_dict,contigid=None,meth_fwd=None,meth_rev=None): 
+            #extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=None,train=False,pos_label=None)
+            outtup = extract_features(tsvname,fastaname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=endline,train=train,pos_label=training_pos_dict,chrom=contigid,meth_fwd=meth_fwd,meth_rev=meth_rev)
+            out_q.put(outtup)
+        def countlines(filename,num_refs,contigid=None):
+            if num_refs == 1:
+                return 0,sum(1 for _ in open(filename))
+            else:
+                contig_reached = False
+                contigstart = 1
+                contignum = 0
+                for line in open(filename):
+                    if line.split('\t')[0] == contigid:
+                        if not contig_reached:
+                            contig_reached = True
+                        contignum += 1
+                    elif not contig_reached:
+                        contigstart += 1
+                return contigstart,contignum
 
-          if nprocs == 1:   
-             if not train:
-                extract_features(tsvname,read2qual,meth_fwd,meth_rev,nvariables,skip_thresh,qual_thresh,modelfile,classifier,0) #TODO: implement quality thresholding
-             else:
-                signal_mat, label_array, context_array = extract_features(tsvname,read2qual,meth_fwd,meth_rev,nvariables,modelfile,skip_thresh,qual_thresh,classifier,0,train=train,pos_label=training_pos_dict)
+    if nprocs == 1 or num_refs == 1:
+        for ref in SeqIO.parse(refname,"fasta"):
+            contigid = ref.id
+            print 'contig =',contigid,'- allocating',nprocs,'threads'
+            meth_fwd,meth_rev = methylate_references(str(ref.seq).upper(),base,motif=motif,positions=positions_list)
+            #sys.exit(0)
 
-          elif nprocs > 1 and not multi_fasta:
+            if nprocs == 1:   
+                if not train:
+                    extract_features(tsvname,refname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,0,chrom=contigid,meth_fwd=meth_fwd,meth_rev=meth_rev) #TODO: implement quality thresholding
+                else:
+                    signal_mat, label_array, context_array = extract_features(tsvname,refname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,0,train=train,pos_label=training_pos_dict,chrom=contigid,meth_fwd=meth_fwd,meth_rev=meth_rev)
 
-             def worker(out_q,tsvname,read2qual,meth_fwd,meth_rev,nvariables,skip_thresh,qual_thresh,modelfile,classifier,startline,endline,train,training_pos_dict): 
-                outtup = extract_features(tsvname,read2qual,meth_fwd,meth_rev,nvariables,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=endline,train=train,pos_label=training_pos_dict)
-                out_q.put(outtup)
+            else:
+                cstart, nlines = countlines(tsvname,num_refs,contigid) #TODO: split by reference sequence in or out of python? 
+                chunksize = int(math.ceil(nlines / float(nprocs)))
 
-             def countlines(filename):
-                return sum(1 for _ in open(filename))
+                for i in range(nprocs):
+                    p = multiprocessing.Process(
+                        target=worker,
+                        args=(out_q,tsvname,refname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,cstart+chunksize*i,cstart+chunksize*(i+1),train,training_pos_dict,contigid,meth_fwd,meth_rev))
+                    procs.append(p)
+                    p.start()
 
-             nlines = countlines(tsvname)
-        
-             out_q = multiprocessing.Queue()
-             chunksize = int(math.ceil(nlines / float(nprocs)))
-             procs = []
+    else:
+        filelength = countlines(tsvname,1)
+        chunksize = int(math.ceil(nlines / float(filelength)))
 
-             for i in range(nprocs):
-                p = multiprocessing.Process(
-                   target=worker,
-                   args=(out_q,tsvname,read2qual,meth_fwd,meth_rev,nvariables,skip_thresh,qual_thresh,modelfile,classifier,chunksize*i,chunksize*(i+1),train,training_pos_dict))
-                procs.append(p)
-                p.start()
+        for i in range(nprocs):
+            p = multiprocessing.Process(
+                    target=worker, 
+                    args=(out_q,tsvname,refname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,cstart+chunksize*i,cstart+chunksize*(i+1),train,training_pos_dict))
+            procs.append(p)
+            p.start()
 
-             if train:
-                # Collect all results into a signal matrix and an array of labels
-                signal_mat = []
-                label_array = []
-                context_array = []
-                for i,proc in enumerate(procs):
-                   tmp_signal_mat,tmp_label_array,tmp_contexts = out_q.get()
-                   print 'updating with results from process',i
-                   signal_mat.extend(tmp_signal_mat)
-                   label_array.extend(tmp_label_array)
-                   context_array.extend(tmp_contexts)
+    if nprocs > 1:
+        if train:
+            # Collect all results into a signal matrix and an array of labels
+            signal_mat = []
+            label_array = []
+            context_array = []
+            for i,proc in enumerate(procs):
+                tmp_signal_mat,tmp_label_array,tmp_contexts = out_q.get()
+                print 'updating with results from process',i
+                signal_mat.extend(tmp_signal_mat)
+                label_array.extend(tmp_label_array)
+                context_array.extend(tmp_contexts)
 
              # Wait for all worker processes to finish
-             for p in procs:
-                p.join ()
+        for p in procs:
+            p.join ()
        
     print('Finished extracting signals')
 
     if train: 
+       assert len(label_array) > 5, 'insufficient data aligned to labeled positions for training'
        train_classifier(signal_mat,label_array,context_array,modelfile,classifier) 
        print('Finished training') 
 
@@ -126,6 +157,11 @@ def main():
     if not args.train:
         assert os.path.isfile(args.modelfile), 'model file not found at '+args.modelfile
 
+    if args.motif and len(args.motif) == 1:
+        base = args.motif
+    else:
+        base = args.base
+
     assert (args.skip_thresh < args.num_variables/2), 'too many skips with only '+str(args.num_variables)+' variables - try < half' 
 
     assert os.path.isfile(args.fastq), 'fastq file not found at '+args.fastq
@@ -135,18 +171,12 @@ def main():
         num_refs = 0
         for ref in SeqIO.parse(args.reference,"fasta"):
             num_refs+=1
-        if num_refs < 2:
-            multi_fasta = False
-        else:
-            multi_fasta = True
-            print('multi-fasta base mod calling under development, try again later')
-            sys.exit(0)
     except IOError:
         print('reference file missing')
         sys.exit(0)
 
     #distribute to multiple threads for main computations
-    distribute_threads(args.positions,args.motif,args.tsv,read2qual,args.reference,multi_fasta,args.base,mod,args.threads,args.num_variables,
+    distribute_threads(args.positions,args.motif,args.tsv,read2qual,args.reference,num_refs,base,mod,args.threads,args.num_variables,
         args.train,modelfile,args.skip_thresh,args.qual_thresh,args.classifier)
 
 if __name__ == "__main__":
