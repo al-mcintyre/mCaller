@@ -36,13 +36,13 @@ def distribute_threads(positions_list,motif,tsvname,read2qual,refname,num_refs,b
         nprocs_allocated = 0
         procs = []
         out_q = multiprocessing.Queue()
-        def worker(out_q,tsvname,fastaname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,startline,endline,train,training_pos_dict,contigid=None,meth_fwd=None,meth_rev=None): 
+        def worker(out_q,tsvname,fastaname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,startline,endline,train,training_pos_dict,contigid=None,meth_fwd=None,meth_rev=None,base=base,motif=None,positions_list=None): 
             #extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=None,train=False,pos_label=None)
-            outtup = extract_features(tsvname,fastaname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=endline,train=train,pos_label=training_pos_dict,chrom=contigid,meth_fwd=meth_fwd,meth_rev=meth_rev)
+            outtup = extract_features(tsvname,fastaname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=endline,train=train,pos_label=training_pos_dict,chrom=contigid,meth_fwd=meth_fwd,meth_rev=meth_rev,base=base,motif=motif,positions_list=positions_list)
             out_q.put(outtup)
         def countlines(filename,num_refs,contigid=None):
             if num_refs == 1:
-                return 0,sum(1 for _ in open(filename))
+                return sum(1 for _ in open(filename))
             else:
                 contig_reached = False
                 contigstart = 1
@@ -81,13 +81,13 @@ def distribute_threads(positions_list,motif,tsvname,read2qual,refname,num_refs,b
                     p.start()
 
     else:
-        filelength = countlines(tsvname,1)
-        chunksize = int(math.ceil(nlines / float(filelength)))
+        nlines = countlines(tsvname,1)
+        chunksize = int(math.ceil(nlines / float(nprocs)))
 
         for i in range(nprocs):
             p = multiprocessing.Process(
                     target=worker, 
-                    args=(out_q,tsvname,refname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,cstart+chunksize*i,cstart+chunksize*(i+1),train,training_pos_dict))
+                    args=(out_q,tsvname,refname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,chunksize*i,chunksize*(i+1),train,training_pos_dict,None,None,None,base,motif,positions_list))
             procs.append(p)
             p.start()
 

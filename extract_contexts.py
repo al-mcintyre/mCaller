@@ -1,4 +1,5 @@
 from collections import defaultdict
+from Bio import SeqIO
 import numpy as np
 import cPickle 
 import sys
@@ -33,7 +34,7 @@ def methylate_motifs(ref_seq,motif,meth_base,meth_position=None): #TODO: add opt
    meth_seq = ref_seq.replace(motif,meth_motif)
    #ref_motif_segs = ref_seq.split(motif)
    #meth_seq = meth_motif.join(ref_motif_segs)
-   print len(meth_seq.split(meth_motif))-1, motif+' positions found'
+   #print len(meth_seq.split(meth_motif))-1, motif+' positions found'
    return meth_seq
 
 #change specified positions to M in reference sequence
@@ -55,11 +56,11 @@ def methylate_positions(ref_seq,positions,meth_base):
 
 #extract signals around methylated positions from tsv
 def methylate_references(ref_seq,base,motif=None,positions=None,train=False):
-   print 'sequence length', len(ref_seq)
+   #print 'sequence length', len(ref_seq)
    if motif:
       meth_fwd = methylate_motifs(ref_seq,motif,base)
       meth_rev = methylate_motifs(ref_seq,revcomp(motif),base_comps[base])
-      print len(meth_fwd.split('M')),'Ms in methylated sequence'
+      #print len(meth_fwd.split('M')),'Ms in methylated sequence'
    elif positions:
       fwd_pos = [int(pos.split()[1]) for pos in open(positions,'r').read().split('\n') if len(pos.split()) > 1 and pos.split()[2] == '+']
       rev_pos = [int(pos.split()[1]) for pos in open(positions,'r').read().split('\n') if len(pos.split()) > 1 and pos.split()[2] == '-']
@@ -70,16 +71,16 @@ def methylate_references(ref_seq,base,motif=None,positions=None,train=False):
       sys.exit(0)
    return meth_fwd,meth_rev
 
-def find_and_methylate(refname,contigname):
+def find_and_methylate(refname,contigname,base,motif,positions_list):
     for ref in SeqIO.parse(refname,"fasta"):
         contigid = ref.id
         if contigid == contigname:
-            print 'contig =',contigid
+            #print 'contig =',contigid
             meth_fwd,meth_rev = methylate_references(str(ref.seq).upper(),base,motif=motif,positions=positions_list)
-            return meth_fwd,meth_rwd
+            return meth_fwd,meth_rev
 
 #determine difference between measurements and model for bases surrounding methylated positions 
-def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=None,train=False,pos_label=None,chrom=None,meth_fwd=None,meth_rev=None):
+def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=None,train=False,pos_label=None,chrom=None,meth_fwd=None,meth_rev=None,base=None,motif=None,positions_list=None):
     #def extract_features(tsv_input,read2qual,contigid,meth_fwd,meth_rev,k,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=None,train=False,pos_label=None):
     #set position variables
     firstline,last_read,last_pos,last_pos_in_kmer,linenum,last_read_num = True,'',0,k,0,0
@@ -112,10 +113,11 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
             linenum+=1
             chrom, read_pos, read_kmer, read_name, x, read_ind, event_current, event_sd, y, ref_kmer, model_current, ref_sd, z  = line.split('\t')
             if chrom != last_contig:
-                print 'loading new contig',chrom
+                #print 'loading new contig',chrom
                 try:
-                    meth_fwd,meth_rev = find_and_methylate(fasta_input,chrom)
+                    meth_fwd,meth_rev = find_and_methylate(fasta_input,chrom,base,motif,positions_list)
                     print 'finished loading.',len(meth_fwd.split('M')),'positions to examine' 
+                    last_contig = chrom
                 except ValueError:
                     print 'Error: could not find sequence for reference contig',chrom
                     continue
