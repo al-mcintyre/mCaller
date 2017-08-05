@@ -15,21 +15,20 @@ from sklearn.ensemble import GradientBoostingClassifier
 
 #make position to label dict for training
 def pos2label(positions):
-   pos2label_dict = {(int(pos.split()[1])-1,pos.split()[2]):pos.split()[3] for pos in open(positions,'r').read().split('\n') if len(pos.split()) > 1}
-   print pos2label_dict
+   pos2label_dict = {(pos.split()[0],int(pos.split()[1]),pos.split()[2]):pos.split()[3] for pos in open(positions,'r').read().split('\n') if len(pos.split()) > 1} #no longer -1 b/c switching everything to 0-based references
    return pos2label_dict
 
 #to show best results of parameter grid search
 def report(results, n_top):
-    for i in range(1, n_top + 1):
-        candidates = np.flatnonzero(results['rank_test_score'] == i)
-        for candidate in candidates:
-            print("Model with rank: {0}".format(i))
-            print("Mean validation score: {0:.3f} (std: {1:.3f})".format(
-                  results['mean_test_score'][candidate],
-                  results['std_test_score'][candidate]))
-            print("Parameters: {0}".format(results['params'][candidate]))
-            print("")
+   for i in range(1, n_top + 1):
+       candidates = np.flatnonzero(results['rank_test_score'] == i)
+       for candidate in candidates:
+           print("Model with rank: {0}".format(i))
+           print("Mean validation score: {0:.3f} (std: {1:.3f})".format(
+                 results['mean_test_score'][candidate],
+                 results['std_test_score'][candidate]))
+           print("Parameters: {0}".format(results['params'][candidate]))
+           print("")
 
 def train_classifier(signals,labels,groups,modelfile,classifier='NN'): #TODO: set order of labels
    classifier = classifier.split('_')[0]
@@ -72,7 +71,7 @@ def train_classifier(signals,labels,groups,modelfile,classifier='NN'): #TODO: se
 
    scores = cross_val_score(model,signals,labels,cv=gfk,groups=groups)
    print scores
-   print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+   print("Cross validation accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
 
    model.fit(signals,labels)
   
