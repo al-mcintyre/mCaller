@@ -41,7 +41,8 @@ def distribute_threads(positions_list,motif,tsvname,read2qual,refname,num_refs,b
             outtup = extract_features(tsvname,fastaname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=endline,train=train,pos_label=training_pos_dict,chrom=contigid,meth_fwd=meth_fwd,meth_rev=meth_rev,base=base,motif=motif,positions_list=positions_list)
             out_q.put(outtup)
         def countlines(filename,num_refs,contigid=None):
-            if num_refs == 1:
+            if num_refs == 0: #TODO: remove this
+                print filename
                 return sum(1 for _ in open(filename))
             else:
                 contig_reached = False
@@ -70,6 +71,7 @@ def distribute_threads(positions_list,motif,tsvname,read2qual,refname,num_refs,b
                     signal_mat, label_array, context_array = extract_features(tsvname,refname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,0,train=train,pos_label=training_pos_dict,chrom=contigid,meth_fwd=meth_fwd,meth_rev=meth_rev)
 
             else:
+                print tsvname
                 cstart, nlines = countlines(tsvname,num_refs,contigid) #TODO: split by reference sequence in or out of python? 
                 chunksize = int(math.ceil(nlines / float(nprocs)))
 

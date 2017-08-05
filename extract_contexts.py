@@ -155,7 +155,9 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
                                 label = 'm6A' #TODO: ensure correct direction + load model in advance + label unmeth/meth as appropriate 
                             else:
                                 label = 'A' 
+                            label = label+'\t'+str(np.round(mod_prob[0][1],2))
                         else:
+                            mod_prob = ''
                             label = pos_label[(mpos,strand(last_rev))] #TODO: add chromosome?
                             signals.append(diffs)
                             labels.append(label)
