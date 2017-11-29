@@ -6,7 +6,7 @@ from scipy import stats
 from scipy.cluster.hierarchy import fcluster,linkage
 import scipy.spatial.distance as ssd
 from extract_contexts import revcomp
-from unsupervised_mod_detection import plot_w_labels
+from plotlib import plot_w_labels
 import os
 import pandas as pd
 
@@ -47,23 +47,21 @@ def ref2context(ref,pos_dict):
     ref_dict = {}
     return pos_context_dict
 
-def cluster(values,context,original_labels,pos1,plot,plotdir):
-    #print context, pos1
-    #print values
-    pdistance = ssd.pdist(values,metric='correlation')
-    #print len(pd)
-    dm = ssd.squareform(pdistance)
-    #print dm
-    link = linkage(dm,method='complete',metric='correlation')
-    klabels = fcluster(link,2,'maxclust') #1,'inconsistent') #2,'maxclust')
-    print klabels
-    #klabels = [1 if x == 1 else 0 for x in klabels]
-    #labels = ['m6A']*len(klabels)
-    currents = values
-    strategy = 'correlation'
+def cluster(currents,context,original_labels,chrom,pos1,plot,plotdir):
     colours = {'m6A':'#B4656F','A':'#55B196'} #TODO update for other labels
+    if len(currents) > 1:
+        pdistance = ssd.pdist(currents,metric='correlation')
+        dm = ssd.squareform(pdistance)
+        link = linkage(dm,method='complete',metric='correlation')
+        klabels = fcluster(link,2,'maxclust') #1,'inconsistent') #2,'maxclust')
+        #klabels = [1 if x == 1 else 0 for x in klabels]
+        #labels = ['m6A']*len(klabels)
+        strategy = 'correlation'
+    else:
+        klabels = [1 if x==1 else 0 for x in original_labels]
+        strategy = 'classifierProb'
     if plot:
-        plot_w_labels(klabels,original_labels,currents,strategy,context+', position '+str(pos1),plotdir,colours)
+        plot_w_labels(klabels,original_labels,currents,strategy,context,'chrom.'+chrom+'.pos.'+pos1,plotdir,colours)
     #for cluster in clusters:
 
 def aggregate_by_pos(meth_fi,aggfi,depth_thresh,mod_thresh,pos_list,control,verbose_results,gff,ref,plot,plotdir):
@@ -90,7 +88,7 @@ def aggregate_by_pos(meth_fi,aggfi,depth_thresh,mod_thresh,pos_list,control,verb
                 values_dict[(csome,pos,nextpos,context,strand)] = []
                 if verbose_results:
                     pos_dict_verbose[(csome,pos,nextpos,context,strand)] = []
-            if pos_list and (csome,pos,nextpos,strand) in pos_set:
+            if (pos_list and (csome,pos,nextpos,strand) in pos_set) or (not pos_list and plot):
                 values_dict[(csome,pos,nextpos,context,strand)].append([float(v) for v in values.split(',')][:-1])
             if label[0] == 'm':
                 pos_dict[(csome,pos,nextpos,context,strand)].append(1)
@@ -101,10 +99,12 @@ def aggregate_by_pos(meth_fi,aggfi,depth_thresh,mod_thresh,pos_list,control,verb
         #except:
         #    pass
 
+    if plot:
+        for locus in values_dict:
+            cluster(values_dict[locus],locus[3],['m6A' if x == 1 else 'A' for x in pos_dict[locus]],locus[0],locus[1],plot,plotdir)
+
     if pos_list:
         for locus in values_dict:
-            if plot:
-                cluster(values_dict[locus],locus[3],['m6A' if x == 1 else 'A' for x in pos_dict[locus]],locus[1],plot,plotdir)
             values_df = pd.DataFrame(values_dict[locus])
             tvals = []
             pvals = []
@@ -185,10 +185,12 @@ def main():
         output_file = output_file+'.gff'
     else:
         output_file = output_file+'.bed'
+    if not os.path.isdir(args.plotdir):
+        os.mkdir(args.plotdir)
 
     print args.mCaller_file
 
-    aggregate_by_pos(args.mCaller_file,output_file,args.min_read_depth,args.mod_threshold,args.positions,args.control,args.vo,args.gff,args.refi,args.plot,args.plotdir)
+    aggregate_by_pos(args.mCaller_file,output_file,args.min_read_depth,args.mod_threshold,args.positions,args.control,args.vo,args.gff,args.ref,args.plot,args.plotdir)
 
 if __name__ == "__main__":
     main()

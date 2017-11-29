@@ -19,6 +19,7 @@ from read_qual import extract_read_quality
 
 def distribute_threads(positions_list,motif,tsvname,read2qual,refname,num_refs,base,mod,nprocs,nvariables,train,modelfile,skip_thresh,qual_thresh,classifier,training_bed):
     """ distributes list of genomic positions across processes then adds resulting signals to matrix if training"""
+    outdir='/'.join(tsvname.split('/')[:-1])+'/'
     if not train:
       tsv_output = '.'.join(tsvname.split('.')[:-1])+'.diffs.'+str(nvariables)
       training_pos_dict = None
@@ -44,9 +45,9 @@ def distribute_threads(positions_list,motif,tsvname,read2qual,refname,num_refs,b
 
     if nprocs == 1 and not training_bed:
         if not train:
-            extract_features(tsvname,refname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,0,endline=bytesize) 
+            extract_features(tsvname,refname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,0,endline=bytesize,train=train,pos_label=training_pos_dict,base=base,motif=motif,positions_list=positions_list) 
         else:
-            signal_mat, label_array, context_array = extract_features(tsvname,refname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,0,endline=bytesize,train=train,pos_label=training_pos_dict)
+            signal_mat, label_array, context_array = extract_features(tsvname,refname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,0,endline=bytesize,train=train,pos_label=training_pos_dict,base=base,motif=motif,positions_list=positions_list)
 
     elif nprocs > 1 and not training_bed:
         chunksize = int(math.ceil(bytesize/float(nprocs))) 
@@ -80,10 +81,13 @@ def distribute_threads(positions_list,motif,tsvname,read2qual,refname,num_refs,b
             os.remove(tsv_output)
     except OSError:
        pass
-    tmpfis = glob.glob("*.tmp[0-9]*")
-    os.system('cat ' + ' '.join(tmpfis) + ' > ' + tsv_output)
-    for tmpfi in tmpfis:
-        os.remove(tmpfi)
+    tmpfis = glob.glob(outdir+"*.tmp[0-9]*")
+    if nprocs > 1:
+        os.system('cat ' + ' '.join(tmpfis) + ' > ' + tsv_output)
+        for tmpfi in tmpfis:
+            os.remove(tmpfi)
+    else:
+        os.system('mv ' + ' '.join(tmpfis) + ' ' + tsv_output)
 
     if train: 
        assert len(label_array) > 5, 'insufficient data aligned to labeled positions for training'

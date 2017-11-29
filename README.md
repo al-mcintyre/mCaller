@@ -7,6 +7,8 @@
 This program is designed to call m6A from nanopore data using the differences between measured and expected currents.  
 
 ## Requirements
+> - nanopolish (https://github.com/jts/nanopolish)
+> - an aligner to create a bam file (has been tested with graphmap and bwa mem)
 python packages
 > - scikit-learn 
 > - h5py
@@ -20,7 +22,6 @@ python packages
 
 other
 > - nanopore sequencing data (fastq format + fast5 to run nanopolish, basecalled using Albacore or another basecaller that saves event data)
-> - a tsv file with the signal realignment from nanopolish (https://github.com/jts/nanopolish)
 > - a reference sequence file (fasta)
 
 ## Options
@@ -82,6 +83,10 @@ nanopolish extract -q -t template <fast5 directory> > <filename>.fastq
 ``` 
 poretools fastq --type fwd <fast5 directory> > <filename>.fastq 
 ```
+  for albacore version > 2.0, follow the nanopolish guidelines (https://github.com/jts/nanopolish) and use 
+```
+nanopolish index -d <fast5 directory> -q <filename>.fastq
+```
 2. align fastq reads to reference assembly (we have used both GraphMap and bwa mem, with comparable results):
 ``` 
 bwa index <reference>.fasta 
@@ -105,7 +110,7 @@ mCaller_nanopolish.py <-m GATC or -p positions.txt> -r <reference>.fasta -e <fil
    This returns a tabbed file with chromosome, read name, genomic position, position k-mer context, features, strand, and label
 6. (optionally) run summary script to generate a bed file of methylated positions:
 ```
-mod_by_position.py -f <filename>.eventalign.diffs.6 -d 15 -m 0.5 
+make_bed.py -f <filename>.eventalign.diffs.6 -d 15 -m 0.5 
 ```
 
 Results and analysis scripts for the E. coli datasets are provided in the bioRxiv folder. 
@@ -123,7 +128,7 @@ Reference fasta, PacBio calls for m6A and a subset of A positions, and eventalig
   This will generate the output file testdata/masonread1.eventalign.diffs.6
 
 ``` 
-./mod_by_position.py -f testdata/masonread1.eventalign.diffs.6 -d 1 -m 0.5 
+./make_bed.py -f testdata/masonread1.eventalign.diffs.6 -d 1 -m 0.5 
 ```
   Will then generate the output bed file testdata/masonread.methylation.summary.bed with columns chrom, chromStart, chromEnd, context, % methylated, strand, depth of coverage
 
