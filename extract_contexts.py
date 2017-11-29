@@ -1,5 +1,6 @@
 from collections import defaultdict
 from Bio import SeqIO
+import scipy.stats as ss
 import numpy as np
 import cPickle 
 import sys
@@ -27,7 +28,7 @@ def strand(rev):
 
 #find positions of motifs (eg. CG bases) in reference sequence and change to M
 #@profile
-def methylate_motifs(ref_seq,motif,meth_base,meth_position=None): #TODO: add option to specify which A in motif with multiple A's 
+def methylate_motifs(ref_seq,motif,meth_base,meth_position=None): 
    #print motif, meth_base, meth_position
    if meth_position:
       meth_motif = motif[:meth_position]+'M'
@@ -96,6 +97,17 @@ def writefi(data,fi):
         for entry in data:
             outfi.write('\t'.join(entry)+'\n')
 
+def adjust_scores(context_dict,context,diffs,prob,k):
+    if context in context_dict['m6A']:
+        hmm_score = 1-(1/np.prod([ss.norm(context_dict['m6A'][context]['mean'][i],context_dict['m6A'][context]['sd'][i]).pdf(diffs[i]) for i in range(k)]))
+        correlation_score = ss.stats.pearsonr(context_dict['m6A'][context]['mean'],diffs)[0]
+        if context in context_dict['A']:
+            correlation_diff = correlation_score - ss.stats.pearsonr(context_dict['A'][context]['mean'],diffs)[0]
+            frac_meth = context_dict['m6A'][context]['num']*1./context_dict['A'][context]['num']
+        else:
+            frac_meth = 1
+        representation_score = prob + 1 - frac_meth #increases score for contexts not included in methylation training set
+
 #determine difference between measurements and model for bases surrounding methylated positions 
 #@profile
 def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=None,train=False,pos_label=None,base=None,motif=None,positions_list=None):
@@ -125,8 +137,8 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
         tsv.readline() #to start new line
         while tsv.tell() <= endline-500:
             lines = tsv.readlines(8000000)
-            if tsv.tell() > 80374772633:
-                print tsv.tell()
+            #if tsv.tell() > 80374772633:
+                #print tsv.tell()
             for line in lines:
                 chrom, read_pos, read_kmer, read_name, x, read_ind, event_current, event_sd, y, ref_kmer, model_current, ref_sd, z  = line.split('\t')
                 if chrom != last_contig:
@@ -162,25 +174,21 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
                     if num_skips <= skip_thresh: #accept max number of skips within an observation
                         if num_skips> 0:
                             w_skips.add((last_read,mpos))
-                        diffs = [np.mean(kmer_pos) if kmer_pos!=[] else 0 for kmer_pos in diff_col]
+                        diffs = [np.mean(kmer_pos) if kmer_pos!=[] else 0 for kmer_pos in diff_col] 
                         if not last_rev:
                             diffs = diffs[::-1]
-                        diffs = diffs+[read2qual[last_read]-18]
+                        diffs = diffs+[read2qual[last_read]] #tried -18 to scale quality.. 
                         context = revcomp(meth_ref[mpos-k+1:mpos+k],last_rev)
                         if not train:
-                            mod_prob = model.predict_proba([diffs])
+                            mod_prob = model.predict_proba([diffs]) #TODO: call model only when batch ready to write
                             if mod_prob[0][1] >= 0.5: 
-                                label = 'm6A' #TODO: ensure correct direction + load model in advance + label unmeth/meth as appropriate 
+                                label = 'm6A' #TODO: ensure correct direction + label unmeth/meth as appropriate 
                             else:
                                 label = 'A' 
                             label = label+'\t'+str(np.round(mod_prob[0][1],2))
                         else:
                             mod_prob = ''
-<<<<<<< HEAD
-                            label = pos_label[(chrom,mpos,strand(last_rev))] #TODO: add chromosome?
-=======
-                            label = pos_label[(mpos,strand(last_rev))] #TODO: add chromosome?
->>>>>>> 53b015fa25ce57593eb288aeac9c300cb878785c
+                            label = pos_label[(chrom,mpos,strand(last_rev))] 
                             signals.append(diffs)
                             labels.append(label)
                             contexts.append(context)

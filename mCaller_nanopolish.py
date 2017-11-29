@@ -8,6 +8,7 @@ import cPickle
 import sys
 #import time
 import os
+import glob
 import math
 import multiprocessing
 from Bio import SeqIO
@@ -15,7 +16,6 @@ from Bio import SeqIO
 from extract_contexts import *
 from train_model import train_classifier,pos2label
 from read_qual import extract_read_quality
-from import_bed import bed2matrix
 
 def distribute_threads(positions_list,motif,tsvname,read2qual,refname,num_refs,base,mod,nprocs,nvariables,train,modelfile,skip_thresh,qual_thresh,classifier,training_bed):
     """ distributes list of genomic positions across processes then adds resulting signals to matrix if training"""
@@ -41,50 +41,6 @@ def distribute_threads(positions_list,motif,tsvname,read2qual,refname,num_refs,b
         def worker(out_q,tsvname,fastaname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,startline,endline,train,training_pos_dict,base=base,motif=None,positions_list=None): 
             outtup = extract_features(tsvname,fastaname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=endline,train=train,pos_label=training_pos_dict,base=base,motif=motif,positions_list=positions_list)
             out_q.put(outtup)
-<<<<<<< HEAD
-=======
-        def countlines(filename,num_refs,contigid=None):
-            if num_refs == 0: #TODO: remove this
-                print filename
-                return sum(1 for _ in open(filename))
-            else:
-                contig_reached = False
-                contigstart = 1
-                contignum = 0
-                for line in open(filename):
-                    if line.split('\t')[0] == contigid:
-                        if not contig_reached:
-                            contig_reached = True
-                        contignum += 1
-                    elif not contig_reached:
-                        contigstart += 1
-                return contigstart,contignum
-
-    if nprocs == 1 or num_refs == 1:
-        for ref in SeqIO.parse(refname,"fasta"):
-            contigid = ref.id
-            print 'contig =',contigid,'- allocating',nprocs,'threads'
-            meth_fwd,meth_rev = methylate_references(str(ref.seq).upper(),base,motif=motif,positions=positions_list)
-            #sys.exit(0)
-
-            if nprocs == 1:   
-                if not train:
-                    extract_features(tsvname,refname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,0,chrom=contigid,meth_fwd=meth_fwd,meth_rev=meth_rev) #TODO: implement quality thresholding
-                else:
-                    signal_mat, label_array, context_array = extract_features(tsvname,refname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,0,train=train,pos_label=training_pos_dict,chrom=contigid,meth_fwd=meth_fwd,meth_rev=meth_rev)
-
-            else:
-                print tsvname
-                cstart, nlines = countlines(tsvname,num_refs,contigid) #TODO: split by reference sequence in or out of python? 
-                chunksize = int(math.ceil(nlines / float(nprocs)))
-
-                for i in range(nprocs):
-                    p = multiprocessing.Process(
-                        target=worker,
-                        args=(out_q,tsvname,refname,read2qual,nvariables,skip_thresh,qual_thresh,modelfile,classifier,cstart+chunksize*i,cstart+chunksize*(i+1),train,training_pos_dict,contigid,meth_fwd,meth_rev))
-                    procs.append(p)
-                    p.start()
->>>>>>> 53b015fa25ce57593eb288aeac9c300cb878785c
 
     if nprocs == 1 and not training_bed:
         if not train:
@@ -131,6 +87,7 @@ def distribute_threads(positions_list,motif,tsvname,read2qual,refname,num_refs,b
 
     if train: 
        assert len(label_array) > 5, 'insufficient data aligned to labeled positions for training'
+       print('Training...')
        train_classifier(signal_mat,label_array,context_array,modelfile,classifier) 
        print('Finished training') 
 
@@ -154,6 +111,7 @@ def main():
     parser.add_argument('-s','--skip_thresh',type=int,required=False,help='number of skips to allow within an observation (default 0)',default=0)
     parser.add_argument('-q','--qual_thresh',type=float,required=False,help='quality threshold for reads (under development, please sort your own reads for now)',default=0)
     parser.add_argument('-c','--classifier',type=str,required=False,help='use alternative classifier: options = NN (default) RF, LR, or NBC',default='NN')
+    #parser.add_argument('--plot_violin',action='store_true',required=False,help='train a new model (requires labels in positions file)',default=False)
     parser.add_argument('-v','--version',action='store_true',required=False,help='print version')
     args = parser.parse_args()
 
@@ -170,7 +128,7 @@ def main():
         sys.exit(0)
  
     if not args.modelfile:
-        modelfile = 'model_'+args.classifier+'_'+str(args.num_variables)+'_'+mod+'.pkl'
+        modelfile = 'model_'+args.classifier+'_'+str(args.num_variables)+'_'+mod
     else:
         modelfile = args.modelfile
     
