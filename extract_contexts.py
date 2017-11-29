@@ -176,7 +176,11 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
                             label = label+'\t'+str(np.round(mod_prob[0][1],2))
                         else:
                             mod_prob = ''
+<<<<<<< HEAD
                             label = pos_label[(chrom,mpos,strand(last_rev))] #TODO: add chromosome?
+=======
+                            label = pos_label[(mpos,strand(last_rev))] #TODO: add chromosome?
+>>>>>>> 53b015fa25ce57593eb288aeac9c300cb878785c
                             signals.append(diffs)
                             labels.append(label)
                             contexts.append(context)
