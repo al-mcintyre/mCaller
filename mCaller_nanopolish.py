@@ -11,11 +11,14 @@ import os
 import glob
 import math
 import multiprocessing
+import warnings
 from Bio import SeqIO
 
 from extract_contexts import *
 from train_model import train_classifier,pos2label
 from read_qual import extract_read_quality
+
+warnings.filterwarnings("ignore", module="sklearn")
 
 def distribute_threads(positions_list,motif,tsvname,read2qual,refname,num_refs,base,mod,nprocs,nvariables,train,modelfile,skip_thresh,qual_thresh,classifier,training_bed):
     """ distributes list of genomic positions across processes then adds resulting signals to matrix if training"""
