@@ -36,7 +36,7 @@ usage: mCaller_nanopolish.py [-h] (-p POSITIONS | -m MOTIF) -r REFERENCE -e
                              [-v]
 ```
 
-optional arguments:
+arguments:
 ```
   -h, --help            show this help message and exit
   -p, --positions
@@ -120,7 +120,7 @@ Results and analysis scripts for the E. coli datasets are provided in the bioRxi
 
 ## Test data
 
-Reference fasta, PacBio calls for m6A and a subset of A positions, and eventalign tsv + fastq are provided for a single read for testing purposes in the "testdata" folder. 
+Reference fasta, PacBio calls for m6A and a subset of A positions, and eventalign tsv + fastq are provided for a single read for testing purposes in the "testdata" folder. The testdata_from_fast5.sh bash script is also included and can be modified with paths to external programs as appropriate to test generation of output from a fast5 file. 
 
 1. To run mCaller on the testdata, use:
 ``` 
@@ -140,4 +140,4 @@ Reference fasta, PacBio calls for m6A and a subset of A positions, and eventalig
 ./mCaller_nanopolish.py -p testdata/test_positions.txt -r testdata/pb_ecoli_polished_assembly.fasta -e testdata/masonread1.eventalign.tsv -t 4 --train -f testdata/masonread1.fastq
 ```
 
-  This will generate the output file model_NN_6_m6A.pkl
+  This will generate the output file model_NN_6_m6A.pkl. 

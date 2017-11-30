@@ -1,10 +1,14 @@
-filename='testdata/r95_test_read' #mac178083_med_cornell_edu_20160922_FN_MN17623_sequencing_run_20160922_nasa_mix_98347_ch372_read1326_strand1'
+filename='testdata/masonread1' 
 ref='testdata/pb_ecoli_polished_assembly'
-#../nanopolish_dir/nanopolish extract -q -t template $filename.fast5 > $filename.fastq
-#graphmap align -r $ref.fasta -d $filename.fastq -o $filename.sam
-#samtools view -bS $filename.sam | samtools sort -T /tmp/$filename.sorted -o $filename.sorted.bam
-#samtools index $filename.sorted.bam
-#../nanopolish_dir/nanopolish eventalign -t 1 --scale-events -n -r $filename.fastq -b $filename.sorted.bam -g $ref.fasta > $filename.eventalign.tsv
-./mCaller_nanopolish.py -m GACC -b A -r $ref.fasta -e $filename.eventalign.tsv -d r95_model_NN_6_m6A.pkl -f $filename.fastq -t 2
-#./mCaller_nanopolish.py -p testdata/test_positions_m6A.txt -r $ref.fasta -e $filename.eventalign.tsv -d mod_NN_6_m6A.pkl -f $filename.fastq -t 3
-
+model='mod_NN_6_m6A.pkl'
+#for R9.5 data test, use filename='testdata/r95_test_read' and model='r95_model_NN_6_m6A.pkl'
+threads=1
+nanopolish extract -q -t template $filename.fast5 -o $filename.fastq
+graphmap align -r $ref.fasta -d $filename.fastq -o $filename.sam
+samtools view -bS $filename.sam | samtools sort -T /tmp/$filename.sorted -o $filename.sorted.bam
+rm $filename.sam
+samtools index $filename.sorted.bam
+nanopolish eventalign -t $threads --scale-events -n -r $filename.fastq -b $filename.sorted.bam -g $ref.fasta > $filename.eventalign.tsv
+#mCaller_nanopolish.py -m GATC -b A -r $ref.fasta -e $filename.eventalign.tsv -d $model -f $filename.fastq -t $threads
+mCaller_nanopolish.py -p testdata/test_positions_m6A.txt -b A -r $ref.fasta -e $filename.eventalign.tsv -d $model -f $filename.fastq -t $threads
+make_bed.py -f $filename.eventalign.diffs.6 -d 1 -t 0.5 --plot
