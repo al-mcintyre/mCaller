@@ -6,7 +6,7 @@
 
 This program is designed to call m6A from nanopore data using the differences between measured and expected currents.  
 
-## Requirements
+## Dependencies/requirements
 > - nanopolish (https://github.com/jts/nanopolish)
 > - an aligner to create a bam file (has been tested with graphmap and bwa mem)
 python packages
@@ -23,6 +23,9 @@ python packages
 other
 > - nanopore sequencing data (fastq format + fast5 to run nanopolish, basecalled using Albacore or another basecaller that saves event data)
 > - a reference sequence file (fasta)
+
+## Installation
+Add softlinks for make_bed.py and mCaller_nanopolish.py to path or run from mCaller directory
 
 ## Options
 ```
@@ -77,7 +80,7 @@ optional arguments:
 
 1. extract template strand reads from fast5 files using a method that saves the file path in the fastq header, eg.
 ``` 
-nanopolish extract -q -t template <fast5 directory> > <filename>.fastq 
+nanopolish extract -q -t template <fast5 directory> -o <filename>.fastq 
 ```
    or 
 ``` 
