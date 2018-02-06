@@ -2,9 +2,11 @@ from collections import defaultdict
 from Bio import SeqIO
 import scipy.stats as ss
 import numpy as np
-import cPickle 
+import cPickle
+#import _pickle as cPickle
 import sys
 import re
+import os
 
 base_comps = {'A':'T','C':'G','T':'A','G':'C','N':'N','M':'M'}
 
@@ -29,7 +31,6 @@ def strand(rev):
 #find positions of motifs (eg. CG bases) in reference sequence and change to M
 #@profile
 def methylate_motifs(ref_seq,motif,meth_base,meth_position=None): 
-   #print motif, meth_base, meth_position
    if meth_position:
       meth_motif = motif[:meth_position]+'M'
       if meth_position < len(motif)-1:
@@ -37,26 +38,20 @@ def methylate_motifs(ref_seq,motif,meth_base,meth_position=None):
    else:
       meth_motif = 'M'.join(motif.split(meth_base))
    meth_seq = ref_seq.replace(motif,meth_motif)
-   #ref_motif_segs = ref_seq.split(motif)
-   #meth_seq = meth_motif.join(ref_motif_segs)
-   #print len(meth_seq.split(meth_motif))-1, motif+' positions found'
    return meth_seq
 
 #change specified positions to M in reference sequence
 #@profile
 def methylate_positions(ref_seq,positions,meth_base):
    meth_seq = ref_seq
-   #print('next sequence')
    count = 0
    for pos in positions: #changed to 0-based - else have to subtract from pos
-      #print meth_seq[pos-6:pos+5]
-      if meth_seq[pos] == meth_base:
+      if meth_seq[pos] == meth_base or meth_seq[pos] == 'M':
          meth_seq = meth_seq[:pos]+'M'+meth_seq[pos+1:]
          count+=1
-         #print meth_seq[pos-6:pos+5]
       else:
-         print count, meth_seq[pos-5:pos+6], pos
-         print 'bad methylation - check reference positions are 0-based - quitting thread now'
+         print(count, meth_seq[pos-5:pos+6], pos)
+         print('Base does not correspond to methylated base - check reference positions are 0-based - quitting thread now')
          sys.exit(0)
    #print count, 'positions methylated in one strand' 
    return meth_seq
@@ -64,7 +59,6 @@ def methylate_positions(ref_seq,positions,meth_base):
 #extract signals around methylated positions from tsv
 #@profile
 def methylate_references(ref_seq,base,motif=None,positions=None,train=False,contig=None):
-   #print 'sequence length', len(ref_seq)
    if motif:
       meth_fwd = methylate_motifs(ref_seq,motif,base)
       meth_rev = methylate_motifs(ref_seq,revcomp(motif),base_comps[base])
@@ -75,7 +69,7 @@ def methylate_references(ref_seq,base,motif=None,positions=None,train=False,cont
       meth_fwd = methylate_positions(ref_seq,fwd_pos,base)
       meth_rev = methylate_positions(ref_seq,rev_pos,base_comps[base])
    else:  
-      print 'no motifs or positions specified'
+      print('no motifs or positions specified')
       sys.exit(0)
    return meth_fwd,meth_rev
 
@@ -84,13 +78,8 @@ def find_and_methylate(refname,contigname,base,motif,positions_list):
     for ref in SeqIO.parse(refname,"fasta"):
         contigid = ref.id
         if contigid == contigname:
-            #print 'contig =',contigid
-            #print 'methylating contig', contigname
             meth_fwd,meth_rev = methylate_references(str(ref.seq).upper(),base,motif=motif,positions=positions_list,contig=contigname)
-            #print 'methylated reference complete'
             return meth_fwd,meth_rev
-        #else:
-            #print 'not methylating',contigid
 
 def writefi(data,fi):
     with open(fi,'a') as outfi:
@@ -108,9 +97,18 @@ def adjust_scores(context_dict,context,diffs,prob,k):
             frac_meth = 1
         representation_score = prob + 1 - frac_meth #increases score for contexts not included in methylation training set
 
+def base_models(base):
+    if base == 'A':
+        base_model = {'MG':'MG','MC':'MH','MA':'MH','MT':'MH','MM':'MH','MH':'MH','AT':'MH','AC':'MH','AG':'MG','AT':'MH','AA':'MH','AM':'MH'} #TODO: fix error where sites not methylated
+    else:
+        base_model = {'M'+nextb:'general' for nextb in ['A','C','G','T']}
+    return(base_model)
+
 #determine difference between measurements and model for bases surrounding methylated positions 
 #@profile
 def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=None,train=False,pos_label=None,base=None,motif=None,positions_list=None):
+
+    base_model = base_models(base)
     #set position variables
     last_read,last_pos,last_pos_in_kmer,last_read_num = '',0,k,0
     last_contig = None
@@ -127,7 +125,7 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
         modfi.close()
     else:
         tsv_output = '.'.join(tsv_input.split('.')[:-1])+'.diffs.'+str(k)+'.train.tmp'+str(startline)
-        signals,labels,contexts = [],[],[]
+        signals,contexts = {bm:{} for bm in base_model.values()},{bm:{} for bm in base_model.values()}
 
     towrite = []
     #save only one set of adjoining methylated positions at a time - once the set complete, write the positions to a file 
@@ -140,17 +138,13 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
             #if tsv.tell() > 80374772633:
                 #print tsv.tell()
             for line in lines:
-                chrom, read_pos, read_kmer, read_name, x, read_ind, event_current, event_sd, y, ref_kmer, model_current, ref_sd, z  = line.split('\t')
+                chrom, read_pos, read_kmer, read_name, x, read_ind, event_current, event_sd, y, ref_kmer, model_current, ref_sd, z  = line.split()
                 if chrom != last_contig:
-                    #print 'loading new contig',chrom
                     try:
-                        #print 'new chrom',chrom,'but old was',last_contig,'and byte is',tsv.tell(),'with endbyte',endline,'for thread starting at',startline
-                        #print line
                         meth_fwd,meth_rev = find_and_methylate(fasta_input,chrom,base,motif,positions_list)
-                        #print 'finished loading reference contig.' #,len(meth_fwd.split('M')),'positions to examine' 
                         last_contig = chrom
-                    except ValueError:
-                        print 'Error: could not find sequence for reference contig',chrom
+                    except TypeError: #ValueError
+                        print('Error: could not find sequence for reference contig',chrom)
                         continue
                 if read_name != last_read:
                     first_read_ind = int(read_ind) 
@@ -164,7 +158,6 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
                     meth_ref = meth_rev
                 read_pos = int(read_pos)
                 reference_kmer = meth_ref[read_pos:read_pos+k]
-                #print read_name,rev,ref_kmer,reference_kmer
 
                 #if finished context for previous potentially modified position, save and reset
                 if mpos and ((read_pos >= mpos+1 and read_name == last_read) or (read_name != last_read)):
@@ -177,24 +170,32 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
                         diffs = [np.mean(kmer_pos) if kmer_pos!=[] else 0 for kmer_pos in diff_col] 
                         if not last_rev:
                             diffs = diffs[::-1]
-                        diffs = diffs+[read2qual[last_read]] #tried -18 to scale quality.. 
+                        diffs = diffs+[read2qual[last_read]] 
                         context = revcomp(meth_ref[mpos-k+1:mpos+k],last_rev)
-                        if not train:
-                            mod_prob = model.predict_proba([diffs]) #TODO: call model only when batch ready to write
-                            if mod_prob[0][1] >= 0.5: 
-                                label = 'm6A' #TODO: ensure correct direction + label unmeth/meth as appropriate 
+                        try: 
+                            twobase_model = base_model[context[int(len(context)/2):int(len(context)/2)+2]]
+                            if not train:
+                                mod_prob = model[twobase_model].predict_proba([diffs]) #TODO: call model only when batch ready to write
+                                if mod_prob[0][1] >= 0.5: 
+                                    if base == 'A':
+                                        label = 'm6A' #TODO: ensure correct direction + label unmeth/meth as appropriate 
+                                    else:
+                                        label = 'm'+base
+                                else:
+                                    label = base 
+                                label = label+'\t'+str(np.round(mod_prob[0][1],2))
                             else:
-                                label = 'A' 
-                            label = label+'\t'+str(np.round(mod_prob[0][1],2))
-                        else:
-                            mod_prob = ''
-                            label = pos_label[(chrom,mpos,strand(last_rev))] 
-                            signals.append(diffs)
-                            labels.append(label)
-                            contexts.append(context)
-                        towrite.append([chrom,last_read,str(mpos),context,','.join([str(diff) for diff in diffs]),strand(last_rev),label])
-                        #outfi.write(chrom+'\t'+last_read+'\t'+str(mpos)+'\t'+context+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev)+'\t'+label+'\n')
-                        last_info = last_read+'\t'+str(mpos)+'\t'+context+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev)+'\t'+label
+                                mod_prob = ''
+                                label = pos_label[(chrom,mpos,strand(last_rev))] 
+                                if label not in signals[twobase_model]:
+                                    signals[twobase_model][label] = []
+                                    contexts[twobase_model][label] = []
+                                signals[twobase_model][label].append(diffs)
+                                contexts[twobase_model][label].append(context)
+                            towrite.append([chrom,last_read,str(mpos),context,','.join([str(diff) for diff in diffs]),strand(last_rev),label])
+                            last_info = last_read+'\t'+str(mpos)+'\t'+context+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev)
+                        except (IndexError,KeyError) as e:
+                            print last_read+'\t'+str(mpos)+'\t'+context+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev)
                         num_observations += 1
                         if num_observations%5000 == 0:
                             writefi(towrite,tsv_output)
@@ -224,15 +225,13 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
                         diff_col = diffs
                         if len(diff_col) != k:
                             try:
-                                print last_info
+                                print(last_info)
                             except:
                                 pass
-                            print reference_kmer,mpos,read_pos,read_pos>mpos,read_name,last_read,diff_col,mspacing
+                            print(reference_kmer,mpos,read_pos,read_pos>mpos,read_name,last_read,diff_col,mspacing)
                             diff_col = [[] for i in range(k)]
-                            #break
 
             #if modified base in reference, save surrounding context to call that position
-            #if len([x for x in reference_kmer if x == 'M']) >= 1:
                 if 'M' in set(list(reference_kmer)):
                     pos_in_kmer = [i for i,x in enumerate(list(reference_kmer)) if x == 'M'][0]
                     #if new read, reset differences variable and proceed
@@ -240,38 +239,27 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
                         mpos = None
                         diff_col = [[] for i in range(k)]
                     #if new read or new position
-                    if not mpos: #TODO: reject any positions too close to beginning of read automatically
+                    if not mpos: 
                         mpos = read_pos+pos_in_kmer
                     last_pos_in_kmer = pos_in_kmer
                     last_read = read_name
                     last_rev = rev
-                    try:
-                        diff_col[pos_in_kmer].append(float(event_current)-float(model_current))
-                    except IndexError:
-                        print diff_col, mpos, read_pos, reference_kmer, pos_in_kmer
-                        diff_col = [[] for i in range(k)]
-                        diff_col[pos_in_kmer].append(float(event_current)-float(model_current))
-                        #break
+                    diff_col[pos_in_kmer].append(float(event_current)-float(model_current))
                     last_pos = read_pos 
-                    #print mpos, reference_kmer, read_pos, diff_col
          
                 elif mpos:
                     mpos = None
                     diff_col = [[] for i in range(k)]
 
     writefi(towrite,tsv_output)
-    #with open(tsv_output,'a') as outfi:
-    #        for entry in towrite:
-    #            outfi.write('\t'.join(entry)+'\n')
 
-    print 'thread finished processing...:'
-    print num_observations,'observations'
+    print('thread finished processing...:')
+    print('%d observations' %num_observations)
     num_pos = len(pos_set)
-    print num_pos,'positions'
-    #cPickle.dump(diffs_by_read,open(tsv_input+'.pkl','wb'))
-    print len(multi_meth_pos_set),'regions with multiple methylated bases'
-    print len(w_skips), 'observations with skips included'
-    print len(skipped_skips), 'observations with too many skips'
+    print('%d positions' %num_pos)
+    print('%d regions with multiple methylated bases' %len(multi_meth_pos_set))
+    print('%d observations with skips included' %len(w_skips))
+    print('%d observations with too many skips' %len(skipped_skips)) 
     if train:
-        return signals, labels, contexts
+        return signals, contexts
 
