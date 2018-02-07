@@ -70,12 +70,20 @@ def distribute_threads(positions_list,motif,tsvname,read2qual,refname,num_refs,b
 
         if train:
             # Collect all results into a signal matrix and an array of labels
-            signal_mat = []
-            context_array = []
+            signal_mat = {}
+            context_array = {}
             for i,proc in enumerate(procs):
                 tmp_signal_mat,tmp_contexts = out_q.get()
-                signal_mat.extend(tmp_signal_mat)
-                context_array.extend(tmp_contexts)
+                for twobase in tmp_signal_mat:
+                    if twobase not in signal_mat:
+                        signal_mat[twobase] = {}
+                        context_array[twobase] = {}
+                    for label in tmp_signal_mat[twobase]:
+                        if label not in signal_mat[twobase]:
+                            signal_mat[twobase][label] = []
+                            context_array[twobase][label] = []
+                        signal_mat[twobase][label].extend(tmp_signal_mat)
+                        context_array[twobase][label].extend(tmp_contexts)
 
         # Wait for all worker processes to finish
         for p in procs:

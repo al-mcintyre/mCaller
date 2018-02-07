@@ -50,7 +50,6 @@ def methylate_positions(ref_seq,positions,meth_base):
          meth_seq = meth_seq[:pos]+'M'+meth_seq[pos+1:]
          count+=1
       else:
-         print(count, meth_seq[pos-5:pos+6], pos)
          print('Base does not correspond to methylated base - check reference positions are 0-based - quitting thread now')
          sys.exit(0)
    #print count, 'positions methylated in one strand' 
