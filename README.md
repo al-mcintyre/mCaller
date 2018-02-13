@@ -140,3 +140,7 @@ Reference fasta, PacBio calls for m6A and a subset of A positions, and eventalig
 ```
 
   This will generate the output file model_NN_6_m6A.pkl. 
+  
+  ## Results with the latest model 
+  ![latest results](motifs_plot.png)
+  Unsurprisingly, mCaller performs best at identifying motifs similar to those it's trained on (here, E. coli). This is a clear limitation to the method, but the results are still sufficient in many cases to verify a motif of interest. 
