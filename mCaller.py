@@ -82,8 +82,8 @@ def distribute_threads(positions_list,motif,tsvname,read2qual,refname,num_refs,b
                         if label not in signal_mat[twobase]:
                             signal_mat[twobase][label] = []
                             context_array[twobase][label] = []
-                        signal_mat[twobase][label].extend(tmp_signal_mat)
-                        context_array[twobase][label].extend(tmp_contexts)
+                        signal_mat[twobase][label].extend(tmp_signal_mat[twobase][label])
+                        context_array[twobase][label].extend(tmp_contexts[twobase][label])
 
         # Wait for all worker processes to finish
         for p in procs:

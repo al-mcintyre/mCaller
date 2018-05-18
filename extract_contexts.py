@@ -96,18 +96,17 @@ def adjust_scores(context_dict,context,diffs,prob,k):
             frac_meth = 1
         representation_score = prob + 1 - frac_meth #increases score for contexts not included in methylation training set
 
-def base_models(base):
-    if base == 'A':
+def base_models(base,twobase):
+    if base == 'A' and twobase:
         base_model = {'MG':'MG','MC':'MH','MA':'MH','MT':'MH','MM':'MH','MH':'MH','AT':'MH','AC':'MH','AG':'MG','AT':'MH','AA':'MH','AM':'MH'} #TODO: fix error where sites not methylated
     else:
-        base_model = {'M'+nextb:'general' for nextb in ['A','C','G','T']}
+        base_model = {'M'+nextb:'general' for nextb in ['A','C','G','T']} 
     return(base_model)
 
 #determine difference between measurements and model for bases surrounding methylated positions 
 #@profile
 def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,modelfile,classifier,startline,endline=None,train=False,pos_label=None,base=None,motif=None,positions_list=None):
 
-    base_model = base_models(base)
     #set position variables
     last_read,last_pos,last_pos_in_kmer,last_read_num = '',0,k,0
     last_contig = None
@@ -122,7 +121,14 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
         modfi = open(modelfile,'rb')
         model = cPickle.load(modfi)
         modfi.close()
+        if type(model) != dict:
+            model = {'general':model} #for compatibility with previously trained model
+            twobase = False
+        else:
+            twobase = True
+        base_model = base_models(base,twobase)
     else:
+        base_model = base_models(base,True)
         tsv_output = '.'.join(tsv_input.split('.')[:-1])+'.diffs.'+str(k)+'.train.tmp'+str(startline)
         signals,contexts = {bm:{} for bm in base_model.values()},{bm:{} for bm in base_model.values()}
 
@@ -134,8 +140,6 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
         tsv.readline() #to start new line
         while tsv.tell() <= endline-500:
             lines = tsv.readlines(8000000)
-            #if tsv.tell() > 80374772633:
-                #print tsv.tell()
             for line in lines:
                 chrom, read_pos, read_kmer, read_name, x, read_ind, event_current, event_sd, y, ref_kmer, model_current, ref_sd, z  = line.split()
                 if chrom != last_contig:

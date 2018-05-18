@@ -34,6 +34,8 @@ def report(results, n_top):
 def train_classifier(signals,groups,modelfile,classifier='NN',plot=False): #TODO: set order of labels
     models = {}
     for twobase_model in signals:
+        #print signals[twobase_model]['A'][:10]
+        #sys.exit(0)
         #print(twobase_model)
         if classifier == 'RF':
             model = RandomForestClassifier(bootstrap=True, class_weight=None, criterion='entropy',
@@ -78,6 +80,10 @@ def train_classifier(signals,groups,modelfile,classifier='NN',plot=False): #TODO
             labs = labs + [label]*num_examples
             sigs = sigs + signals[twobase_model][label][:num_examples]
             grps = grps + groups[twobase_model][label][:num_examples]
+
+        print labs[:10]
+        print sigs[:10]
+        print grps[:10]
 
         scores = cross_val_score(model,sigs,labs,cv=gfk,groups=grps)
         print("%s %s model scores: %s" %(classifier,twobase_model,','.join([str(s) for s in scores])))
