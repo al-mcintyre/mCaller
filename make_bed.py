@@ -47,9 +47,9 @@ def ref2context(ref,pos_dict):
     ref_dict = {}
     return pos_context_dict
 
-def cluster(currents,context,original_labels,chrom,pos1,plot,plotdir):
+def cluster(currents,context,original_labels,chrom,pos1,plot,plotdir,cluster=False):
     colours = {'m6A':'#B4656F','A':'#55B196'} #TODO update for other labels
-    if len(currents) > 1:
+    if len(currents) > 1 and cluster :
         pdistance = ssd.pdist(currents,metric='correlation')
         dm = ssd.squareform(pdistance)
         link = linkage(dm,method='complete',metric='correlation')
@@ -64,7 +64,7 @@ def cluster(currents,context,original_labels,chrom,pos1,plot,plotdir):
         plot_w_labels(klabels,original_labels,currents,strategy,context,'chrom.'+chrom+'.pos.'+pos1,plotdir,colours)
     #for cluster in clusters:
 
-def aggregate_by_pos(meth_fi,aggfi,depth_thresh,mod_thresh,pos_list,control,verbose_results,gff,ref,plot,plotdir):
+def aggregate_by_pos(meth_fi,aggfi,depth_thresh,mod_thresh,pos_list,control,verbose_results,gff,ref,plot,plotdir,plotsummary):
     pos_dict = {}
     if verbose_results:
         pos_dict_verbose = {}
@@ -81,7 +81,7 @@ def aggregate_by_pos(meth_fi,aggfi,depth_thresh,mod_thresh,pos_list,control,verb
             except: #for backwards compatibility; does not work with verbose results
                 csome,read,pos,context,values,strand,label = tuple(line.split('\t'))
             nextpos = str(int(pos)+1)
-            if pos_list and (csome,pos,nextpos,strand) not in pos_set:
+            if (pos_list and (csome,pos,nextpos,strand) not in pos_set) or (context[len(context)/2] != 'M'):
                 continue
             if (csome,pos,nextpos,context,strand) not in pos_dict:
                 pos_dict[(csome,pos,nextpos,context,strand)] = []
@@ -98,6 +98,14 @@ def aggregate_by_pos(meth_fi,aggfi,depth_thresh,mod_thresh,pos_list,control,verb
                 pos_dict_verbose[(csome,pos,nextpos,context,strand)].append(prob.strip())
         #except:
         #    pass
+    if plotsummary:
+        print('plotting all current deviations...')
+        num2lab = {0:'A',1:'m6A'}
+        curlab = [(val,num2lab[lab],lab) for pos_tup in values_dict for val,lab in zip(values_dict[pos_tup],pos_dict[pos_tup])]
+        currents,labels,klabels = zip(*curlab)
+        colours = {'m6A':'#B4656F','A':'#55B196'}
+        plot_w_labels(klabels,labels,currents,'classifierProb','allpos','allpos',plotdir,colours,alpha=0.3)
+        print('finished plotting.')
 
     if plot:
         for locus in values_dict:
@@ -165,13 +173,14 @@ def main():
     parser.add_argument('--gff',action='store_true',required=False,help='output PacBio-style gff instead of bed ("identificationQv" score will be average probability of methylation)')
     parser.add_argument('--ref',type=str,required=False,help='use reference fasta to output longer contexts surrounding a base, from -20 to +20')
     parser.add_argument('--plot',action='store_true',required=False,help='plot currents deviations at the positions included (not recommended for many positions)')
+    parser.add_argument('--plotsummary',action='store_true',required=False,help='plot currents deviations summarized across the positions included')
     parser.add_argument('--plotdir',type=str,required=False,default='mCaller_position_plots',help='output directory for plots, default=mCaller_position_plots')
     parser.add_argument('--vo',action='store_true',required=False,help='verbose output including probabilities for each position')
     parser.add_argument('-v','--version',action='store_true',required=False,help='print version')
     args = parser.parse_args()
 
     if args.version:
-        print 'mCallerNP 0.1'
+        print 'mCallerNP 0.3'
         sys.exit(0)
 
     assert os.path.isfile(args.mCaller_file), 'file not found at '+args.mCaller_file
@@ -190,8 +199,7 @@ def main():
 
     print args.mCaller_file
 
-    aggregate_by_pos(args.mCaller_file,output_file,args.min_read_depth,args.mod_threshold,args.positions,args.control,args.vo,args.gff,args.ref,args.plot,args.plotdir)
+    aggregate_by_pos(args.mCaller_file,output_file,args.min_read_depth,args.mod_threshold,args.positions,args.control,args.vo,args.gff,args.ref,args.plot,args.plotdir,args.plotsummary)
 
 if __name__ == "__main__":
     main()
-
