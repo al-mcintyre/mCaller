@@ -50,7 +50,7 @@ def methylate_positions(ref_seq,positions,meth_base):
          meth_seq = meth_seq[:pos]+'M'+meth_seq[pos+1:]
          count+=1
       else:
-         print('Base does not correspond to methylated base - check reference positions are 0-based - quitting thread now')
+         print('Base {} does not correspond to methylated base - check reference positions are 0-based - quitting thread now'.format(pos))
          sys.exit(0)
    #print count, 'positions methylated in one strand' 
    return meth_seq
@@ -58,7 +58,7 @@ def methylate_positions(ref_seq,positions,meth_base):
 #extract signals around methylated positions from tsv
 #@profile
 def methylate_references(ref_seq,base,motif=None,positions=None,train=False,contig=None):
-   if motif:
+   if not positions and motif:
       meth_fwd = methylate_motifs(ref_seq,motif,base)
       meth_rev = methylate_motifs(ref_seq,revcomp(motif),base_comps[base])
       #print len(meth_fwd.split('M')),'Ms in methylated sequence'
@@ -96,11 +96,13 @@ def adjust_scores(context_dict,context,diffs,prob,k):
             frac_meth = 1
         representation_score = prob + 1 - frac_meth #increases score for contexts not included in methylation training set
 
-def base_models(base,twobase):
+def base_models(base,twobase=False):
     if base == 'A' and twobase:
         base_model = {'MG':'MG','MC':'MH','MA':'MH','MT':'MH','MM':'MH','MH':'MH','AT':'MH','AC':'MH','AG':'MG','AT':'MH','AA':'MH','AM':'MH'} #TODO: fix error where sites not methylated
     else:
-        base_model = {'M'+nextb:'general' for nextb in ['A','C','G','T']} 
+        base_model = {'M'+nextb:'general' for nextb in ['A','C','G','T','M']}
+        base_model.update({'A'+nextb:'general' for nextb in ['A','C','G','T','M']})
+        base_model.update({'T'+nextb:'general' for nextb in ['A','C','G','T','M']}) #shouldn't be necessary
     return(base_model)
 
 #determine difference between measurements and model for bases surrounding methylated positions 
@@ -125,10 +127,10 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
             model = {'general':model} #for compatibility with previously trained model
             twobase = False
         else:
-            twobase = True
+            twobase = False # True
         base_model = base_models(base,twobase)
     else:
-        base_model = base_models(base,True)
+        base_model = base_models(base,False) #or set to False?
         tsv_output = '.'.join(tsv_input.split('.')[:-1])+'.diffs.'+str(k)+'.train.tmp'+str(startline)
         signals,contexts = {bm:{} for bm in base_model.values()},{bm:{} for bm in base_model.values()}
 
@@ -138,10 +140,10 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
     with open(tsv_input,'r') as tsv:
         tsv.seek(max(startline-500,0))
         tsv.readline() #to start new line
-        while tsv.tell() <= endline-500:
-            lines = tsv.readlines(8000000)
+        while tsv.tell() <= endline-500: #TODO: why 500? 
+            lines = tsv.readlines(8000000) #TODO: why 8M? 
             for line in lines:
-                chrom, read_pos, read_kmer, read_name, x, read_ind, event_current, event_sd, y, ref_kmer, model_current, ref_sd, z  = line.split()
+                chrom, read_pos, read_kmer, read_name, x, read_ind, event_current, event_sd, y, ref_kmer, model_current, ref_sd  = line.split()[:12]
                 if chrom != last_contig:
                     try:
                         meth_fwd,meth_rev = find_and_methylate(fasta_input,chrom,base,motif,positions_list)
@@ -151,9 +153,13 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
                         continue
                 if read_name != last_read:
                     first_read_ind = int(read_ind) 
-                if (read2qual[read_name] < qual_thresh) or ref_kmer == 'NNNNNN':
+                try: 
+                    qual = read2qual[read_name]
+                except KeyError:
+                    qual = read2qual[read_name.split(':')[0].split('_')[0]]
+                if (qual < qual_thresh) or ref_kmer == 'NNNNNN':
                     continue
-                if (read_name != last_read and read_kmer == ref_kmer) or (read_name == last_read and int(read_ind) > first_read_ind): #takes into account complementary palindromes
+                if (read_name != last_read and read_kmer == ref_kmer) or (read_name == last_read and int(read_ind) > first_read_ind): #takes into account complementary palindromes - temporarily sets new reads to positive strand
                     rev = False
                     meth_ref = meth_fwd
                 else:
@@ -161,6 +167,9 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
                     meth_ref = meth_rev
                 read_pos = int(read_pos)
                 reference_kmer = meth_ref[read_pos:read_pos+k]
+                #if read_name == last_read and (reference_kmer != revcomp('M'.join(ref_kmer.split('A')),rev) and reference_kmer != revcomp('M'.join(ref_kmer.split('T')),rev)) : #true at pseudomethylated positions (to check) TODO: remove this
+                #    print 'issue with reference kmer in line', line, reference_kmer, rev, revcomp('M'.join(ref_kmer.split('A')),rev)
+                #    sys.exit(0)
 
                 #if finished context for previous potentially modified position, save and reset
                 if mpos and ((read_pos >= mpos+1 and read_name == last_read) or (read_name != last_read)):
@@ -168,37 +177,51 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
                     #write to file
                     num_skips = len([x for x in diff_col if x == []])
                     if num_skips <= skip_thresh: #accept max number of skips within an observation
-                        if num_skips> 0:
+                        if num_skips > 0:
                             w_skips.add((last_read,mpos))
                         diffs = [np.mean(kmer_pos) if kmer_pos!=[] else 0 for kmer_pos in diff_col] 
                         if not last_rev:
                             diffs = diffs[::-1]
-                        diffs = diffs+[read2qual[last_read]] 
-                        context = revcomp(meth_ref[mpos-k+1:mpos+k],last_rev)
-                        try: 
-                            twobase_model = base_model[context[int(len(context)/2):int(len(context)/2)+2]]
-                            if not train:
-                                mod_prob = model[twobase_model].predict_proba([diffs]) #TODO: call model only when batch ready to write
-                                if mod_prob[0][1] >= 0.5: 
-                                    if base == 'A':
-                                        label = 'm6A' #TODO: ensure correct direction + label unmeth/meth as appropriate 
+                        try:
+                            last_qual = read2qual[last_read]
+                        except KeyError:
+                            last_qual = read2qual[last_read.split(':')[0].split('_')[0]]
+                        diffs = diffs+[last_qual] 
+                        context = revcomp(last_ref[mpos-k+1:mpos+k],last_rev)
+                        if context[int(len(context)/2)] == 'M':
+                            try: 
+                                twobase_model = base_model[context[int(len(context)/2):int(len(context)/2)+2]]
+                                if not train:
+                                    mod_prob = model[twobase_model].predict_proba([diffs]) #TODO: call model only when batch ready to write
+                                    if mod_prob[0][1] >= 0.5: 
+                                        if base == 'A':
+                                            label = 'm6A' #TODO: ensure correct direction + label unmeth/meth as appropriate 
+                                        else:
+                                            label = 'm'+base
                                     else:
-                                        label = 'm'+base
+                                        label = base 
+                                    label = label+'\t'+str(np.round(mod_prob[0][1],2))
                                 else:
-                                    label = base 
-                                label = label+'\t'+str(np.round(mod_prob[0][1],2))
-                            else:
-                                mod_prob = ''
-                                label = pos_label[(chrom,mpos,strand(last_rev))] 
-                                if label not in signals[twobase_model]:
-                                    signals[twobase_model][label] = []
-                                    contexts[twobase_model][label] = []
-                                signals[twobase_model][label].append(diffs)
-                                contexts[twobase_model][label].append(context)
-                            towrite.append([chrom,last_read,str(mpos),context,','.join([str(diff) for diff in diffs]),strand(last_rev),label])
-                            last_info = last_read+'\t'+str(mpos)+'\t'+context+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev)
-                        except (IndexError,KeyError) as e:
+                                    mod_prob = ''
+                                    label = pos_label[(chrom,mpos,strand(last_rev))] 
+                                    if label not in signals[twobase_model]:
+                                        signals[twobase_model][label] = []
+                                        contexts[twobase_model][label] = []
+                                    signals[twobase_model][label].append(diffs)
+                                    contexts[twobase_model][label].append(context)
+                                towrite.append([chrom,last_read,str(mpos),context,','.join([str(diff) for diff in diffs]),strand(last_rev),label])
+                                last_info = last_read+'\t'+str(mpos)+'\t'+context+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev)
+                            except (IndexError,KeyError) as e:
+                                print last_read+'\t'+str(mpos)+'\t'+context+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev),'- Index or Key Error'
+                                print model.keys(), base_model.keys(), context[int(len(context)/2):int(len(context)/2)+2]
+                                print e
+                                print model[twobase_model].predict_proba([diffs])
+                                sys.exit(0)
+                        else:
                             print last_read+'\t'+str(mpos)+'\t'+context+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev)
+                            print read_name, rev, last_read, last_rev, last_first
+                            print read_kmer,reference_kmer, ref_kmer, last_pos_in_kmer, mspacing, pos_in_kmer
+                            sys.exit(0)
                         num_observations += 1
                         if num_observations%5000 == 0:
                             writefi(towrite,tsv_output)
@@ -212,7 +235,7 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
                         skipped_skips.add((last_read,mpos))
        
                   #reset variables
-                    if len(reference_kmer.split('M')) < 2 or read_name != last_read or read_pos > mpos+skip_thresh+1: #allow no more than skip_thresh skips
+                    if len(reference_kmer.split('M')) < 2 or read_name != last_read or read_pos > mpos+skip_thresh+1: #allow no more than skip_thresh skips 
                         diff_col = [[] for i in range(k)] 
                         mpos = None
                         last_pos_in_kmer = k 
@@ -222,32 +245,41 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
                         last_mpos = mpos
                         pos_in_kmer = len(reference_kmer.split('M')[0])
                         mpos = read_pos + pos_in_kmer
-                        mspacing = mpos - last_mpos
+                        mspacing = min(k,mpos - last_mpos)
                         last_pos_in_kmer = pos_in_kmer
+                        last_diff_col = diff_col
                         diffs = [[] for i in range(mspacing)] + diff_col[:-mspacing]
                         diff_col = diffs
                         if len(diff_col) != k:
                             try:
-                                print(last_info)
+                                print last_info,'- n diffs off'
                             except:
                                 pass
-                            print(reference_kmer,mpos,read_pos,read_pos>mpos,read_name,last_read,diff_col,mspacing)
+                            #GGCGCM 613883 613878 False 2289b392-746e-4fa0-8226-d3ac661c9620_Basecall_2D_template 2289b392-746e-4fa0-8226-d3ac661c9620_Basecall_2D_template [[], [], [], [], [], [], []] 7
+
+                            print reference_kmer,last_mpos,mpos,mspacing,read_pos,read_pos-last_mpos,read_name,last_read,diff_col,mspacing, last_diff_col, last_diff_col[:-mspacing]
                             diff_col = [[] for i in range(k)]
+                            sys.exit(0)
 
             #if modified base in reference, save surrounding context to call that position
                 if 'M' in set(list(reference_kmer)):
                     pos_in_kmer = [i for i,x in enumerate(list(reference_kmer)) if x == 'M'][0]
                     #if new read, reset differences variable and proceed
-                    if mpos and read_name != last_read:
-                        mpos = None
-                        diff_col = [[] for i in range(k)]
+                    if mpos:
+                        if read_name != last_read:
+                            mpos = None
+                            diff_col = [[] for i in range(k)]
+                        elif rev != last_rev:
+                            mpos = None
                     #if new read or new position
                     if not mpos: 
                         mpos = read_pos+pos_in_kmer
                     last_pos_in_kmer = pos_in_kmer
                     last_read = read_name
                     last_rev = rev
-                    diff_col[pos_in_kmer].append(float(event_current)-float(model_current))
+                    last_first = first_read_ind
+                    last_ref = meth_ref
+                    diff_col[pos_in_kmer].append(np.round(float(event_current)-float(model_current),4))
                     last_pos = read_pos 
          
                 elif mpos:

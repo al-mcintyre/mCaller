@@ -8,8 +8,12 @@ def extract_read_quality(fastqfi):
    if fastqfi.find(".gz")!=-1:
       with gzip.open(fastqfi, "rt") as handle:
          for read in SeqIO.parse(handle, "fastq"):
-            read2qual[read.id] = np.mean(read.letter_annotations["phred_quality"])
+            rid = read.id
+            rid = rid.split(':')[0].split('_')[0]
+            read2qual[rid] = np.mean(read.letter_annotations["phred_quality"])
    else:
       for read in SeqIO.parse(fastqfi,"fastq"):
-         read2qual[read.id] = np.mean(read.letter_annotations["phred_quality"])
+         rid = read.id
+         rid = rid.split(':')[0].split('_')[0]
+         read2qual[rid] = np.mean(read.letter_annotations["phred_quality"])
    return read2qual

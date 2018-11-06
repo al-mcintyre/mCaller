@@ -2,11 +2,12 @@
 #A program to classify bases as methylated or unmethylated based on long-range signals using the output from nanopolish
 #Alexa McIntyre, 2016-2018
 
-from collections import defaultdict
-import numpy as np
+import sys
+assert sys.version_info >= (2,7) and sys.version_info < (3,0), 'please use python 2.7'
 import cPickle
 #import _pickle as cPickle
-import sys
+from collections import defaultdict
+import numpy as np
 #import time
 import os
 import glob
@@ -91,6 +92,7 @@ def distribute_threads(positions_list,motif,tsvname,read2qual,refname,num_refs,b
        
     print('Finished extracting signals')
     if not training_tsv:
+        tsv_out = tsv_output+'.unsorted.tmp'
         tmpfis = glob.glob(".".join(tsvname.split(".")[:-1])+"*.tmp[0-9]*")
         if nprocs > 1:
             print('Merging files...')
@@ -99,8 +101,10 @@ def distribute_threads(positions_list,motif,tsvname,read2qual,refname,num_refs,b
             except OSError:
                 pass
             for tmpfi in tmpfis:
-                os.system('cat ' + tmpfi + ' >> '+ tsv_output )
+                os.system('cat ' + tmpfi + ' >> '+ tsv_out )
                 os.remove(tmpfi)
+            os.system('sort -n -k2 ' + tsv_out + '| uniq > ' + tsv_output)
+            os.remove(tsv_out)
         else:
             os.rename(tmpfis[0],tsv_output)
 
@@ -114,6 +118,7 @@ def distribute_threads(positions_list,motif,tsvname,read2qual,refname,num_refs,b
 def main():
     #parse command line options
     from argparse import ArgumentParser
+
     parser = ArgumentParser(description='Classify bases as methylated or unmethylated')
     all_or_some = parser.add_mutually_exclusive_group(required=True)
     all_or_some.add_argument('-p','--positions',type=str,required=False, help='file with a list of positions at which to classify bases (must be formatted as space- or tab-separated file with chromosome, position, strand, and label if training)')
@@ -148,7 +153,7 @@ def main():
         sys.exit(0)
  
     if not args.modelfile:
-        modelfile = os.path.dirname(os.path.realpath(sys.argv[0])) + '/model_'+args.classifier+'_'+str(args.num_variables)+'_'+mod
+        modelfile = os.path.dirname(os.path.realpath(sys.argv[0])) + '/model_'+args.classifier+'_'+str(args.num_variables)+'_'+mod+'.pkl'
     else:
         modelfile = args.modelfile
     
