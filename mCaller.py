@@ -119,7 +119,7 @@ def main():
     #parse command line options
     from argparse import ArgumentParser
 
-    parser = ArgumentParser(description='Classify bases as methylated or unmethylated')
+    parser = ArgumentParser(description='Classify bases as methylated or unmethylated',prog='mCaller')
     all_or_some = parser.add_mutually_exclusive_group(required=True)
     all_or_some.add_argument('-p','--positions',type=str,required=False, help='file with a list of positions at which to classify bases (must be formatted as space- or tab-separated file with chromosome, position, strand, and label if training)')
     all_or_some.add_argument('-m','--motif',type=str,required=False, help='classify every base of type --base in the motif specified instead (can be single one-mer)')
@@ -137,12 +137,8 @@ def main():
     parser.add_argument('-c','--classifier',type=str,required=False,help='use alternative classifier: options = NN (default), RF, LR, or NBC (non-default may significantly increase runtime)',default='NN')
     parser.add_argument('--plot_training',action='store_true',required=False,help='plot probabilities distributions for training positions (requires labels in positions file and --train)',default=False)
     #parser.add_argument('--plot_violin',action='store_true',required=False,help='train a new model (requires labels in positions file)',default=False)
-    parser.add_argument('-v','--version',action='store_true',required=False,help='print version')
+    parser.add_argument('-v','--version',action='version',help='print version',version='%(prog)s v0.3')
     args = parser.parse_args()
-
-    if args.version:
-        print('mCallerNP 0.3')
-        sys.exit(0)
 
     if args.base == 'A':
         mod = 'm6A'
