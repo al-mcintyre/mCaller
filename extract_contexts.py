@@ -127,7 +127,7 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
             model = {'general':model} #for compatibility with previously trained model
             twobase = False
         else:
-            twobase = False # True
+            twobase = True
         base_model = base_models(base,twobase)
     else:
         base_model = base_models(base,False) #or set to False?
