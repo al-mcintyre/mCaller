@@ -168,7 +168,7 @@ def main():
     parser.add_argument('-d','--min_read_depth',type=int,required=False,help='minimum coverage of position to determine methylation (default = 15)',default=15)
     parser.add_argument('-t','--mod_threshold',type=float,required=False,help='minimum %% of observations at a position to include in report (default = 0.5)',default=0.5)
     parser.add_argument('-f','--mCaller_file',type=str,required=True,help='the output file from mCaller to summarize')
-    parser.add_argument('-p','--positions',type=str,required=False,help='~bed file of positions for which to calculate % methylated (chromosome,start,end,strand); ignores other thresholds')
+    parser.add_argument('-p','--positions',type=str,required=False,help='~bed file of positions for which to calculate %% methylated (chromosome,start,end,strand); ignores other thresholds')
     parser.add_argument('--control',action='store_true',required=False,help='take unmethylated positions as a control for motif detection')
     parser.add_argument('--gff',action='store_true',required=False,help='output PacBio-style gff instead of bed ("identificationQv" score will be average probability of methylation)')
     parser.add_argument('--ref',type=str,required=False,help='use reference fasta to output longer contexts surrounding a base, from -20 to +20')

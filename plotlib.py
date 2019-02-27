@@ -9,12 +9,13 @@ from scipy.stats import pearsonr,percentileofscore
 from sklearn.metrics import adjusted_rand_score, adjusted_mutual_info_score
 import numpy as np
 import warnings
+import pandas as pd
 
 base = 'A'
 modbase = 'm6A'
 base_colours = {base:'#55B196', modbase:'#B4656F'}
 
-def plot_w_labels(klabels,labels,currents,strategy,kmer,pos,outdir,base_colours,train=False):
+def plot_w_labels(klabels,labels,currents,strategy,kmer,pos,outdir,base_colours,train=False,alpha=1):
     warnings.filterwarnings("ignore", module="matplotlib")
     bin_labels = [1 if x == 'A' else 0 for x in labels]
     lstyles = {0:'-',1:'--',-1:':',2:':'}
@@ -26,7 +27,7 @@ def plot_w_labels(klabels,labels,currents,strategy,kmer,pos,outdir,base_colours,
 
     if len(set(klabels)) < 4:
         for current,label,kl in zip(currents,labels,klabels):
-            plt.plot(range(1,7),current,label=label+', '+str(kl),color=base_colours[label],linestyle=lstyles[kl])
+            plt.plot(range(1,7),current,label='{}, {}'.format(label,kl),color=base_colours[label],linestyle=lstyles[kl],alpha=alpha)
 
         plt.ylabel('observed-expected current (pA)')
         plt.xlabel('position in kmer')
@@ -78,7 +79,7 @@ def plot_change_by_pos(diffs_by_context,plottype='box'):
           ncol=3, fancybox=True)
     plt.savefig('change_by_position_box.pdf',transparent=True,dpi=500, bbox_inches='tight')
 
-def plot_training_probabilities(prob_scores):
+def plot_training_probabilities(prob_scores,tb):
     #prob_scores = {'m6A':[0.9,0.4,...],'A':[0.1,0.5,0.2,...]}
     sns.set_style('darkgrid')
     sns.set_palette(['#55B196','#B4656F'])
@@ -87,5 +88,5 @@ def plot_training_probabilities(prob_scores):
     prob_db = pd.DataFrame(prob_dict)
     sns.boxplot(x="base", y="probability", data=prob_db)
     sns.despine()
-    plt.savefig('training_probability_boxplot.pdf',transparent=True,dpi=500,bbox_inches='tight')
-
+    plt.show()
+    plt.savefig('training_probability_'+tb+'_model_boxplot.pdf',transparent=True,dpi=500,bbox_inches='tight')
