@@ -54,7 +54,8 @@ arguments:
                         fastq file with nanopore reads
   -t, --threads
                         specify number of processes (default = 1) 
-			multiple threads should work but output won't be sorted
+			multiple threads now includes sorting but this can create trade-offs
+            in terms of speed
   -b, --base  bases to classify as methylated or unmethylated (A or
                         C, default A)
   -n, --num_variables
@@ -62,6 +63,8 @@ arguments:
                         (default of 6 variables corresponds to 11-mer context
                         (6*2-1))
   --train               train a new model (requires labels in positions file)
+  --training_tsv 
+                        provide an mCaller output file with labels for training
   -d, --modelfile 
                         model file name
   -s, --skip_thresh 
@@ -72,7 +75,11 @@ arguments:
   -c, --classifier 
                         use alternative classifier: options = NN (default), RF,
                         LR, or NBC (others may severely increase runtime)
+  --plot_training       plot probabilities distributions for training
+                        positions (requires labels in positions file and
+                        --train)
   -v, --version         print version
+
 ```
 
 ## Pipeline for methylation detection from R9 data
@@ -110,6 +117,7 @@ nanopolish eventalign -t <num_threads> --scale-events -n -r <filename>.fastq -b 
 mCaller.py <-m GATC or -p positions.txt> -r <reference>.fasta -d r95_twobase_model_NN_6_m6A.pkl -e <filename>.eventalign.tsv -f <filename>.fastq -b A 
 ```
    This returns a tabbed file with chromosome, read name, genomic position, position k-mer context, features, strand, and label
+
 6. (optionally) run summary script to generate a bed file of methylated positions:
 ```
 make_bed.py -f <filename>.eventalign.diffs.6 -d 15 -m 0.5 
