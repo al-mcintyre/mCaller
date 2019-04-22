@@ -92,9 +92,9 @@ nanopolish extract -q -t template <fast5 directory> -o <filename>.fastq
 ``` 
 poretools fastq --type fwd <fast5 directory> > <filename>.fastq 
 ```
-  for albacore version > 2.0, follow the nanopolish guidelines (https://github.com/jts/nanopolish) and use 
+  for albacore version > 2.0, follow the most up-to-date guidelines from nanopolish (https://github.com/jts/nanopolish). As of April 2019:
 ```
-nanopolish index -d <fast5 directory> -q <filename>.fastq
+nanopolish index -d <fast5 directory> -s sequencing_summary.txt <filename>.fastq
 ```
 2. align fastq reads to reference assembly (we have used both GraphMap and bwa mem, with comparable results):
 ``` 
@@ -116,12 +116,13 @@ nanopolish eventalign -t <num_threads> --scale-events -n -r <filename>.fastq -b 
 ```
 mCaller.py <-m GATC or -p positions.txt> -r <reference>.fasta -d r95_twobase_model_NN_6_m6A.pkl -e <filename>.eventalign.tsv -f <filename>.fastq -b A 
 ```
-   This returns a tabbed file with chromosome, read name, genomic position, position k-mer context, features, strand, and label
+   This returns a tabbed file with per-read predictions, where columns indicate chromosome, read name, genomic position, position k-mer context, features, strand, label, and probability of methylation predicted by mCaller for that position and read 
 
-6. (optionally) run summary script to generate a bed file of methylated positions:
+6. (optionally) run summary script to generate a bed file of per-position methylation predictions:
 ```
-make_bed.py -f <filename>.eventalign.diffs.6 -d 15 -m 0.5 
+make_bed.py -f <filename>.eventalign.diffs.6 -d 15 -t 0.5 
 ```
+`-d` indicates the minimum read depth for inclusion, while `-t` indicates the `--mod_threshold`, or the minimum fraction of observations of a position (ie. currents deviations in individual reads) labelled as methylated, based on a >= 50% predicted probability of methylation with the mCaller model. Check make_bed.py --help for all options. 
 
 Results and analysis scripts for the E. coli datasets are provided in the bioRxiv folder. 
 
@@ -133,7 +134,7 @@ Reference fasta, PacBio calls for m6A and a subset of A positions, and eventalig
 ``` 
 ./mCaller.py -p testdata/test_positions_<m6A/A>.txt -r testdata/pb_ecoli_polished_assembly.fasta -e testdata/masonread1.eventalign.tsv -d r95_twobase_model_NN_6_m6A.pkl -f testdata/masonread1.fastq 
 ```
-   Can also try using -m GATC, although not all GATC positions within the read were identified as methylated on both strands using PacBio and the model is slightly weighted to accept more false negatives than false positives at the moment. 
+   Can also try using `-m GATC`, although not all GATC positions within the read were identified as methylated on both strands using PacBio and the model is slightly weighted to accept more false negatives than false positives at the moment. 
 
   This will generate the output file testdata/masonread1.eventalign.diffs.6
 
