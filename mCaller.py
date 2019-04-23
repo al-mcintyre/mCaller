@@ -34,9 +34,10 @@ def distribute_threads(positions_list,motif,tsvname,read2qual,refname,num_refs,b
       training_pos_dict = None
     else: 
       tsv_output = '.'.join(tsvname.split('.')[:-1])+'.diffs.'+str(nvariables)+'.train'
-      training_pos_dict = pos2label(positions_list)
       if training_tsv:
         signal_mat, context_array = tsv2matrix(training_tsv,base)
+      else:
+          training_pos_dict = pos2label(positions_list)
 
     print('%d contigs' % num_refs)
     print('%d threads' %nprocs)

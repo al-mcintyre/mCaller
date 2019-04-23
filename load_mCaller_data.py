@@ -1,7 +1,7 @@
 from extract_contexts import base_models
 
 def tsv2matrix(tsvname,base):
-    base_model = base_models(base)
+    base_model = base_models(base,False)
     signals,contexts = {bm:{} for bm in base_model.values()},{bm:{} for bm in base_model.values()}
     with open(tsvname,'r') as infi:
         for line in infi:
@@ -12,6 +12,7 @@ def tsv2matrix(tsvname,base):
             if label not in signals[twobase_model]:
                 signals[twobase_model][label] = []
                 contexts[twobase_model][label] = []
-            signals[twobase_model][label].append([float(s) for s in sigs.split(',')])
-            contexts[twobase_model][label].append(context)
+            if len(sigs.split(',')) >= 6 and len([x for x in sigs.split(',') if x == "0"]) == 0:
+                signals[twobase_model][label].append([float(s) for s in sigs.split(',')])
+                contexts[twobase_model][label].append(context)
     return signals, contexts
