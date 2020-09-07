@@ -139,7 +139,7 @@ Reference fasta, PacBio calls for m6A and a subset of A positions, and eventalig
   This will generate the output file testdata/masonread1.eventalign.diffs.6
 
 ``` 
-./make_bed.py -f testdata/masonread1.eventalign.diffs.6 -d 1 -m 0.5 
+./make_bed.py -f testdata/masonread1.eventalign.diffs.6 -d 1 -t 0.5 
 ```
   Will then generate the output bed file testdata/masonread.methylation.summary.bed with columns chrom, chromStart, chromEnd, context, % methylated, strand, depth of coverage
 
