@@ -1,7 +1,6 @@
-import cPickle
-#import _pickle as cPickle
+import pickle 
 import numpy as np
-from plotlib import *
+#from plotlib import *
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
@@ -86,9 +85,9 @@ def train_classifier(signals,groups,modelfile,classifier='NN',plot=False): #TODO
             sigs = sigs + signals[twobase_model][label][:num_examples]
             grps = grps + groups[twobase_model][label][:num_examples]
 
-        print labs[:10]
-        print sigs[:10]
-        print grps[:10]
+        print(labs[:10])
+        print(sigs[:10])
+        print(grps[:10])
 
         scores = cross_val_score(model,sigs,labs,cv=gfk,groups=grps)
         print("%s %s model scores: %s" %(classifier,twobase_model,','.join([str(s) for s in scores])))
@@ -109,7 +108,7 @@ def train_classifier(signals,groups,modelfile,classifier='NN',plot=False): #TODO
             plot_training_probabilities(prob_scores,twobase_model)      
 
     modfi = open(modelfile,'wb')
-    cPickle.dump(models,modfi)
+    pickle.dump(models,modfi)
     modfi.close()
     return models
 

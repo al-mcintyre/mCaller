@@ -28,7 +28,8 @@ def compare_by_position(bed1,bed2,xmfa):
                 t,pval3 = 'none','missing df'
             d,pval4 = ks_2samp(pos_dict[0][pos][1],pos_dict[0][pos][1])
             if pval4 < 0.9:
-                print pos, pos_dict[0][pos][0], pos_dict[1][pos][0], pval, pval2, pval3, pval4
+                print(pos, pos_dict[0][pos][0], pos_dict[1][pos][0], pval, pval2, pval3, pval4)
+                #print pos, pos_dict[0][pos][0], pos_dict[1][pos][0], pval, pval2, pval3, pval4
 
 
 
@@ -43,7 +44,7 @@ def main():
     args = parser.parse_args()
 
     if args.version:
-        print 'mCallerNP 0.1'
+        print('mCallerNP 0.3')
         sys.exit(0)
 
     assert os.path.isfile(args.bed1), 'file not found at '+args.bed1

@@ -7,6 +7,7 @@
 This program is designed to call m6A from nanopore data using the differences between measured and expected currents.  
 
 ## Dependencies/requirements
+> - python3 (as of mCaller version 1.0)
 > - nanopolish (https://github.com/jts/nanopolish)
 > - an aligner to create a bam file (has been tested with graphmap and bwa mem)
 python packages

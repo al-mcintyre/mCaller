@@ -81,7 +81,7 @@ def aggregate_by_pos(meth_fi,aggfi,depth_thresh,mod_thresh,pos_list,control,verb
             except: #for backwards compatibility; does not work with verbose results
                 csome,read,pos,context,values,strand,label = tuple(line.split('\t'))
             nextpos = str(int(pos)+1)
-            if (pos_list and (csome,pos,nextpos,strand) not in pos_set) or (context[len(context)/2] != 'M'):
+            if (pos_list and (csome,pos,nextpos,strand) not in pos_set) or (context[int(len(context)/2)] != 'M'):
                 continue
             if (csome,pos,nextpos,context,strand) not in pos_dict:
                 pos_dict[(csome,pos,nextpos,context,strand)] = []
@@ -98,6 +98,7 @@ def aggregate_by_pos(meth_fi,aggfi,depth_thresh,mod_thresh,pos_list,control,verb
                 pos_dict_verbose[(csome,pos,nextpos,context,strand)].append(prob.strip())
         #except:
         #    pass
+    print(values_dict)
     if plotsummary:
         print('plotting all current deviations...')
         num2lab = {0:'A',1:'m6A'}
@@ -149,6 +150,7 @@ def aggregate_by_pos(meth_fi,aggfi,depth_thresh,mod_thresh,pos_list,control,verb
                 gff_info = (locus[0],locus[2],locus[4],deets)
                 write_gff(outfi,gff_info)
             else:
+                print(aggfi)
                 out_line = '\t'.join(list(locus)[:-1]+[str(np.mean(pos_dict[locus]))]+[locus[-1]]+[str(len(pos_dict[locus]))]) #+[str(x) for x in values_dict[locus]])
                 if pos_list:
                     out_line = out_line + '\t' + '\t'.join([str(x) for x in values_dict[locus]])
@@ -157,9 +159,9 @@ def aggregate_by_pos(meth_fi,aggfi,depth_thresh,mod_thresh,pos_list,control,verb
                 outfi.write(out_line+'\n')
     if not pos_list:
         if not control:
-            print count, 'methylated loci found with min depth', depth_thresh, 'reads'
+            print(count, 'methylated loci found with min depth', depth_thresh, 'reads')
         else:
-            print count, 'unmethylated loci found with min depth', depth_thresh, 'reads'
+            print(count, 'unmethylated loci found with min depth', depth_thresh, 'reads')
 
 def main():
     #parse command line options
@@ -176,12 +178,8 @@ def main():
     parser.add_argument('--plotsummary',action='store_true',required=False,help='plot currents deviations summarized across the positions included')
     parser.add_argument('--plotdir',type=str,required=False,default='mCaller_position_plots',help='output directory for plots, default=mCaller_position_plots')
     parser.add_argument('--vo',action='store_true',required=False,help='verbose output including probabilities for each position')
-    parser.add_argument('-v','--version',action='store_true',required=False,help='print version')
+    parser.add_argument('-v','--version',action='version',help='print version',version='%(prog)s v1.0')
     args = parser.parse_args()
-
-    if args.version:
-        print 'mCallerNP 0.3'
-        sys.exit(0)
 
     assert os.path.isfile(args.mCaller_file), 'file not found at '+args.mCaller_file
     if args.positions:
@@ -197,7 +195,7 @@ def main():
     if not os.path.isdir(args.plotdir):
         os.mkdir(args.plotdir)
 
-    print args.mCaller_file
+    print(args.mCaller_file)
 
     aggregate_by_pos(args.mCaller_file,output_file,args.min_read_depth,args.mod_threshold,args.positions,args.control,args.vo,args.gff,args.ref,args.plot,args.plotdir,args.plotsummary)
 

@@ -2,8 +2,8 @@ from collections import defaultdict
 from Bio import SeqIO
 import scipy.stats as ss
 import numpy as np
-import cPickle
-#import _pickle as cPickle
+#import cPickle
+import pickle #_pickle as cPickle
 import sys
 import re
 import os
@@ -121,7 +121,7 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
     if not train:
         tsv_output = '.'.join(tsv_input.split('.')[:-1])+'.diffs.'+str(k)+'.tmp'+str(startline)
         modfi = open(modelfile,'rb')
-        model = cPickle.load(modfi)
+        model = pickle.load(modfi,encoding='latin')
         modfi.close()
         if type(model) != dict:
             model = {'general':model} #for compatibility with previously trained model
@@ -212,15 +212,15 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
                                 towrite.append([chrom,last_read,str(mpos),context,','.join([str(diff) for diff in diffs]),strand(last_rev),label])
                                 last_info = last_read+'\t'+str(mpos)+'\t'+context+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev)
                             except (IndexError,KeyError) as e:
-                                print last_read+'\t'+str(mpos)+'\t'+context+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev),'- Index or Key Error'
-                                print model.keys(), base_model.keys(), context[int(len(context)/2):int(len(context)/2)+2]
-                                print e
-                                print model[twobase_model].predict_proba([diffs])
+                                print(last_read+'\t'+str(mpos)+'\t'+context+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev),'- Index or Key Error')
+                                print(model.keys(), base_model.keys(), context[int(len(context)/2):int(len(context)/2)+2])
+                                print(e)
+                                print(model[twobase_model].predict_proba([diffs]))
                                 sys.exit(0)
                         else:
-                            print last_read+'\t'+str(mpos)+'\t'+context+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev)
-                            print read_name, rev, last_read, last_rev, last_first
-                            print read_kmer,reference_kmer, ref_kmer, last_pos_in_kmer, mspacing, pos_in_kmer
+                            print(last_read+'\t'+str(mpos)+'\t'+context+'\t'+','.join([str(diff) for diff in diffs])+'\t'+strand(last_rev))
+                            print(read_name, rev, last_read, last_rev, last_first)
+                            print(read_kmer,reference_kmer, ref_kmer, last_pos_in_kmer, mspacing, pos_in_kmer)
                             sys.exit(0)
                         num_observations += 1
                         if num_observations%5000 == 0:
@@ -252,12 +252,12 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
                         diff_col = diffs
                         if len(diff_col) != k:
                             try:
-                                print last_info,'- n diffs off'
+                                print(last_info,'- n diffs off')
                             except:
                                 pass
                             #GGCGCM 613883 613878 False 2289b392-746e-4fa0-8226-d3ac661c9620_Basecall_2D_template 2289b392-746e-4fa0-8226-d3ac661c9620_Basecall_2D_template [[], [], [], [], [], [], []] 7
 
-                            print reference_kmer,last_mpos,mpos,mspacing,read_pos,read_pos-last_mpos,read_name,last_read,diff_col,mspacing, last_diff_col, last_diff_col[:-mspacing]
+                            print(reference_kmer,last_mpos,mpos,mspacing,read_pos,read_pos-last_mpos,read_name,last_read,diff_col,mspacing, last_diff_col, last_diff_col[:-mspacing])
                             diff_col = [[] for i in range(k)]
                             sys.exit(0)
 

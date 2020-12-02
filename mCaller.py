@@ -3,9 +3,8 @@
 #Alexa McIntyre, 2016-2018
 
 import sys
-assert sys.version_info >= (2,7) and sys.version_info < (3,0), 'please use python 2.7'
-import cPickle
-#import _pickle as cPickle
+assert sys.version_info >= (3,0), 'please use python3'
+import pickle 
 from collections import defaultdict
 import numpy as np
 #import time
@@ -138,7 +137,7 @@ def main():
     parser.add_argument('-c','--classifier',type=str,required=False,help='use alternative classifier: options = NN (default), RF, LR, or NBC (non-default may significantly increase runtime)',default='NN')
     parser.add_argument('--plot_training',action='store_true',required=False,help='plot probabilities distributions for training positions (requires labels in positions file and --train)',default=False)
     #parser.add_argument('--plot_violin',action='store_true',required=False,help='train a new model (requires labels in positions file)',default=False)
-    parser.add_argument('-v','--version',action='version',help='print version',version='%(prog)s v0.3')
+    parser.add_argument('-v','--version',action='version',help='print version',version='%(prog)s v1.0')
     args = parser.parse_args()
 
     if args.base == 'A':
