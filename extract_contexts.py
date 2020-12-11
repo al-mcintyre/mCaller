@@ -139,11 +139,18 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
     #tsv format: ecoli   805 CGCCAT  cc1da58e-3db3-4a4b-93c2-c78e1dbe6aba:1D_000:template    t   1   102.16  0.963   0.00175 CGCCAT  102.23  1.93    -0.03   101.973,100.037,102.403,101.758,104.338,102.618,101.973
     with open(tsv_input,'r') as tsv:
         tsv.seek(max(startline-500,0))
-        tsv.readline() #to start new line
-        while tsv.tell() <= endline-500: #TODO: why 500? 
-            lines = tsv.readlines(8000000) #TODO: why 8M? 
+        linepos = max(startline-500,0)
+        #startline, endline, and linepos are in characters -- previously used tsv.tell(), but incompatible with python3
+        while linepos <= endline-500:  
+            #print('current position',linepos)
+            lines = tsv.readlines(8000000) #TODO: why 8M? reasonable size for memory consumption, but could change
             for line in lines:
-                chrom, read_pos, read_kmer, read_name, x, read_ind, event_current, event_sd, y, ref_kmer, model_current, ref_sd  = line.split()[:12]
+                linepos += len(line)
+                try:
+                    chrom, read_pos, read_kmer, read_name, x, read_ind, event_current, event_sd, y, ref_kmer, model_current, ref_sd  = line.split()[:12]
+                except ValueError:
+                    continue
+                    
                 if chrom != last_contig:
                     try:
                         meth_fwd,meth_rev = find_and_methylate(fasta_input,chrom,base,motif,positions_list)
@@ -167,9 +174,6 @@ def extract_features(tsv_input,fasta_input,read2qual,k,skip_thresh,qual_thresh,m
                     meth_ref = meth_rev
                 read_pos = int(read_pos)
                 reference_kmer = meth_ref[read_pos:read_pos+k]
-                #if read_name == last_read and (reference_kmer != revcomp('M'.join(ref_kmer.split('A')),rev) and reference_kmer != revcomp('M'.join(ref_kmer.split('T')),rev)) : #true at pseudomethylated positions (to check) TODO: remove this
-                #    print 'issue with reference kmer in line', line, reference_kmer, rev, revcomp('M'.join(ref_kmer.split('A')),rev)
-                #    sys.exit(0)
 
                 #if finished context for previous potentially modified position, save and reset
                 if mpos and ((read_pos >= mpos+1 and read_name == last_read) or (read_name != last_read)):
