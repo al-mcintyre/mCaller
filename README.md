@@ -129,7 +129,7 @@ Results and analysis scripts for the E. coli datasets are provided in the bioRxi
 
 ## Test data
 
-Reference fasta, PacBio calls for m6A and a subset of A positions, and eventalign tsv + fastq are provided for a single read for testing purposes in the "testdata" folder. The testdata_from_fast5.sh bash script is also included and can be modified with paths to external programs as appropriate to test generation of output from a fast5 file. 
+Reference fasta, PacBio calls for m6A and a subset of A positions, and eventalign tsv + fastq are provided for a single read for testing purposes in the "testdata" folder. 
 
 1. To run mCaller on the testdata, use:
 ``` 
