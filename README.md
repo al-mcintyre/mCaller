@@ -93,10 +93,6 @@ nanopolish index -d <fast5 directory> -s sequencing_summary.txt <filename>.fastq
 ``` 
 poretools fastq --type fwd <fast5 directory> > <filename>.fastq 
 ```
-  for albacore version > 2.0, follow the most up-to-date guidelines from nanopolish (https://github.com/jts/nanopolish). As of April 2019:
-```
-nanopolish index -d <fast5 directory> -s sequencing_summary.txt <filename>.fastq
-```
 2. align fastq reads to reference assembly (we have used both GraphMap and bwa mem, with comparable results):
 ``` 
 bwa index <reference>.fasta 
