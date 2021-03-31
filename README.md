@@ -85,9 +85,9 @@ arguments:
 
 ## Pipeline for methylation detection from R9 data
 
-1. extract template strand reads from fast5 files using a method that saves the file path in the fastq header, eg.
-``` 
-nanopolish extract -q -t template <fast5 directory> -o <filename>.fastq 
+1. extract template strand reads from fast5 files. Follow the most up-to-date guidelines from nanopolish (https://github.com/jts/nanopolish). As of April 2019:
+```
+nanopolish index -d <fast5 directory> -s sequencing_summary.txt <filename>.fastq
 ```
    or 
 ``` 
