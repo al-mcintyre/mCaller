@@ -68,9 +68,6 @@ arguments:
                         provide an mCaller output file with labels for training
   -d, --modelfile 
                         model file name
-                        provided: 
-                           R9.4 and R9.5 data trained on E. coli data (both basecalled with albacore, as published in https://www.nature.com/articles/s41467-019-08289-9)
-                           R9.4 models trained on motifs “GTAYNNNNNRTTG/CAAYNNNNNRTAC” and “CRAANNNNNNNTGC/GCANNNNNNNTTYG”, respectively, basecalled with Guppy-v4.5.2, generously provided by [@wshropshire](https://github.com/wshropshire)
   -s, --skip_thresh 
                         number of skips to allow within an observation
                         (default 0)
@@ -150,6 +147,10 @@ Reference fasta, PacBio calls for m6A and a subset of A positions, and eventalig
 
   This will generate the output file model_NN_6_m6A.pkl. 
   
-  ## Results with the latest model 
+  ## Results with the R9.5 model 
   ![latest results](motifs_plot.png)
   Unsurprisingly, mCaller performs best at identifying motifs similar to those it's trained on (here, E. coli). This is a clear limitation to the method, but the results are still sufficient in many cases to verify a motif of interest. 
+
+## Models provided
+- R9.4 and R9.5 models trained on E. coli data, both basecalled with albacore, as published in https://www.nature.com/articles/s41467-019-08289-9
+- R9.4 models trained on motifs “CAAYNNNNNRTAC/GTAYNNNNNRTTG” and “CRAANNNNNNNTGC/GCANNNNNNNTTYG”, respectively, basecalled with Guppy-v4.5.2, generously provided by [@wshropshire](https://github.com/wshropshire)
